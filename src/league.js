@@ -3,18 +3,19 @@
 
 import { playLanguages, systemPrompt, turnPrompt, historyPrompt, isToolRequest, parseMove } from "./languages.js";
 
-export const DIVISION_SIZES = [10, 20, 30, 40];
-export const DIVISION_NAMES = ["Eliteserien", "1. divisjon", "2. divisjon", "3. divisjon"];
-const BEATS = { rock: "scissors", scissors: "paper", paper: "rock" };
-const K = 32;
-const PARALLEL = 10;
+export const DIVISION_NAMES = ["Eliteserien", "1. divisjon", "2. divisjon", "3. divisjon", "4. divisjon"];
+export const START_DIVISION = 2;
+export const LAST_DIVISION = DIVISION_NAMES.length - 1;
 
+// Rough number of model calls one round costs: half the agents are
+// matches, about 2.5 throws each, two calls per throw, plus history calls.
+export function callEstimate(n) {
+    return Math.round((n / 2) * 2.5 * 2 * 1.6);
+}
+
+// Everyone starts in the middle division.
 export function assignDivisions(agents) {
-    const shuffled = [...agents].sort(() => Math.random() - 0.5);
-    let i = 0;
-    DIVISION_SIZES.forEach((size, d) => {
-        for (let n = 0; n < size; n++) shuffled[i++].division = d;
-    });
+    agents.forEach((ag) => { ag.division = START_DIVISION; });
 }
 
 function pairUp(list) {
@@ -82,7 +83,7 @@ async function playMatch(a, b, oracle, onThrow) {
 export async function playRound(agents, oracle, hooks) {
     agents.forEach((ag) => { ag.roundPoints = 0; });
     const pairs = [];
-    DIVISION_SIZES.forEach((_, d) => pairs.push(...pairUp(agents.filter((ag) => ag.division === d))));
+    DIVISION_NAMES.forEach((_, d) => pairs.push(...pairUp(agents.filter((ag) => ag.division === d))));
     const results = [];
     let i = 0;
     async function worker() {
@@ -95,20 +96,23 @@ export async function playRound(agents, oracle, hooks) {
         }
     }
     await Promise.all(Array.from({ length: PARALLEL }, worker));
-    const moves = promoteRelegate(agents);
+    const moves = promoteRelegate(agents, results);
     return { matches: results, moves };
 }
 
-// Top two of each lower division swap with bottom two of the one above.
-function promoteRelegate(agents) {
-    const rank = (list) => [...list].sort((x, y) => (y.roundPoints - x.roundPoints) || (y.elo - x.elo));
-    const ranked = DIVISION_SIZES.map((_, d) => rank(agents.filter((ag) => ag.division === d)));
-    const moves = [];
-    for (let d = 0; d < DIVISION_SIZES.length - 1; d++) {
-        ranked[d].slice(-2).forEach((ag) => moves.push({ id: ag.id, to: d + 1 }));
-        ranked[d + 1].slice(0, 2).forEach((ag) => moves.push({ id: ag.id, to: d }));
-    }
+// Winners move one division up, losers one down, draws stay. The top
+// cannot go up and the bottom cannot go down. Applied after all matches.
+function promoteRelegate(agents, results) {
     const byId = new Map(agents.map((ag) => [ag.id, ag]));
+    const moves = [];
+    for (const r of results) {
+        const [wa, wb] = r.result;
+        if (wa === wb) continue;
+        const winner = byId.get(wa > wb ? r.a : r.b);
+        const loser = byId.get(wa > wb ? r.b : r.a);
+        if (winner.division > 0) moves.push({ id: winner.id, from: winner.division, to: winner.division - 1 });
+        if (loser.division < LAST_DIVISION) moves.push({ id: loser.id, from: loser.division, to: loser.division + 1 });
+    }
     moves.forEach((m) => { byId.get(m.id).division = m.to; });
     return moves;
 }

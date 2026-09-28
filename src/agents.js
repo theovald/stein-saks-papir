@@ -1,4 +1,4 @@
-// 100 agents, ten per language, with a name and a home town.
+// Agents spread over ten languages, each with a name and a home town.
 
 const NAMES = {
     no: [["Kari", "Bergen"], ["Ola", "Voss"], ["Ingrid", "Stavanger"], ["Lars", "Tromsø"], ["Marit", "Trondheim"], ["Sigurd", "Ålesund"], ["Astrid", "Odda"], ["Eirik", "Bodø"], ["Solveig", "Drammen"], ["Torstein", "Os"]],
@@ -13,12 +13,20 @@ const NAMES = {
     es: [["Lucía", "Sevilla"], ["Mateo", "Bilbao"], ["Martina", "Valencia"], ["Pablo", "Zaragoza"], ["Paula", "Málaga"], ["Diego", "Oviedo"], ["Carla", "Murcia"], ["Álvaro", "Salamanca"], ["Sofía", "Granada"], ["Hugo", "Santander"]],
 };
 
-export function createAgents() {
+export const LANG_CODES = Object.keys(NAMES);
+
+// n agents spread evenly over the ten languages. Names cycle through the
+// lists and get a number once a name repeats.
+export function createAgents(n) {
     const agents = [];
+    const per = Math.max(1, Math.round(n / LANG_CODES.length));
     let id = 0;
-    for (const [lang, list] of Object.entries(NAMES)) {
-        for (const [name, city] of list) {
-            agents.push({ id: id++, lang, name, city, elo: 1000, points: 0, division: 0, moves: [], toolUses: 0, throws: 0 });
+    for (const lang of LANG_CODES) {
+        const list = NAMES[lang];
+        for (let k = 0; k < per; k++) {
+            const [base, city] = list[k % list.length];
+            const suffix = k >= list.length ? ` ${Math.floor(k / list.length) + 1}` : "";
+            agents.push({ id: id++, lang, name: base + suffix, city, elo: 1000, points: 0, roundPoints: 0, division: 0, moves: [], toolUses: 0, throws: 0 });
         }
     }
     return agents;

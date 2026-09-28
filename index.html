@@ -13,14 +13,24 @@
         <div class="gate__card">
             <p class="gate__kicker">Kantegas LLM-proxy</p>
             <h1>Stein, saks, papir på ti språk</h1>
-            <p>100 agenter, fire divisjoner, opp- og nedrykk hver runde. Hvert kast er ett kall til språkmodellen.</p>
+            <p>Språkmodell-agenter fordelt på ti språk spiller mot hverandre i fire divisjoner med opp- og nedrykk hver runde. Hvert kast er ett kall til språkmodellen, på det språket kampen spilles på.</p>
+            <label>Antall agenter
+                <select id="count">
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+            </label>
+            <p id="estimate" class="gate__estimate"></p>
             <label>Nøkkel<input id="key" type="password" autocomplete="off" placeholder="Lim inn nøkkel"></label>
             <label>Modell<input id="model" type="text" autocomplete="off"></label>
             <div class="gate__buttons">
                 <button id="go" class="btn btn--primary">Start live</button>
                 <button id="nokey" class="btn">Start uten nøkkel</button>
             </div>
-            <p class="gate__note">Nøkkelen lagres i denne nettleseren til du trykker «Glem nøkkel».</p>
+            <p class="gate__note">Nøkkelen lagres i denne nettleseren til du trykker «Glem nøkkel». Uten nøkkel spilles et opptak av hvis det finnes, ellers en simulering med tilfeldige kast.</p>
         </div>
     </section>
 
@@ -32,6 +42,7 @@
             <div class="top__buttons">
                 <button id="toggle" class="btn btn--primary">Start</button>
                 <button id="next" class="btn">Neste runde</button>
+                <button id="about" class="btn">Om</button>
                 <button id="download" class="btn">Last ned opptak</button>
                 <button id="forget" class="btn btn--quiet">Glem nøkkel</button>
             </div>
@@ -40,40 +51,99 @@
             <div id="pyramid" class="pyramid">
                 <svg id="lines" class="lines" aria-hidden="true"></svg>
             </div>
-            <aside id="detail" class="detail" hidden>
-                <button id="detail-close" class="btn btn--quiet detail__close" type="button">Lukk</button>
-                <div id="detail-body"></div>
-            </aside>
-            <aside id="stats" class="stats">
-                <h2>Kast per språk</h2>
-                <div id="stat-lang" class="rows"></div>
-                <p class="legend"><i class="legend__rock"></i>stein <i class="legend__scissors"></i>saks <i class="legend__paper"></i>papir</p>
-                <h2>Morsmål mot fremmedspråk</h2>
-                <div id="stat-native" class="rows"></div>
-                <h2>Seiersandel per kast</h2>
-                <div id="stat-winrate" class="rows rows--compact"></div>
-                <h2>Åpningskast per språk</h2>
-                <div id="stat-opening" class="rows"></div>
-                <h2>Ba om historikk</h2>
-                <div id="stat-tool" class="rows rows--compact"></div>
-                <h2>Gjentar forrige kast</h2>
-                <div id="stat-repeat" class="rows rows--compact"></div>
-                <h2>ELO-snitt</h2>
-                <div id="stat-elo" class="rows rows--compact"></div>
-                <h2>Plasser i Eliteserien</h2>
-                <div id="stat-elite" class="rows rows--compact"></div>
-                <h2>Språk mot språk</h2>
-                <ol id="stat-pairs" class="pairs"></ol>
-                <h2>Topp fem</h2>
-                <ol id="stat-top" class="ranking"></ol>
-                <h2>Bunn fem</h2>
-                <ol id="stat-bottom" class="ranking"></ol>
-                <h2>Ugyldige svar</h2>
-                <div id="stat-invalid" class="rows rows--compact"></div>
+            <aside class="side">
+                <div id="filter" class="filter" hidden>
+                    <span id="filter-label"></span>
+                    <button id="filter-clear" class="btn btn--quiet btn--small" type="button">Nullstill</button>
+                </div>
+                <nav id="tabs" class="tabs" aria-label="Faner">
+                    <button class="tab is-active" data-tab="oversikt" type="button">Oversikt</button>
+                    <button class="tab" data-tab="sprak" type="button">Språk</button>
+                    <button class="tab" data-tab="moter" type="button">Møter</button>
+                    <button class="tab" data-tab="runder" type="button">Runder</button>
+                    <button class="tab tab--context" data-tab="agent" type="button" hidden>Agent</button>
+                    <button class="tab tab--context" data-tab="divisjon" type="button" hidden>Divisjon</button>
+                </nav>
+                <div class="panels">
+                    <section class="panel is-active" data-panel="oversikt">
+                        <p class="panel__help">Trykk på et språk for å filtrere pyramiden. Trykk på en agent eller en divisjonsetikett i pyramiden for å grave.</p>
+                        <h2>Kast per språk</h2>
+                        <div id="stat-lang" class="rows"></div>
+                        <p class="legend"><i class="legend__rock"></i>stein <i class="legend__scissors"></i>saks <i class="legend__paper"></i>papir</p>
+                        <h2>Morsmål mot fremmedspråk</h2>
+                        <div id="stat-native" class="rows"></div>
+                        <h2>Seiersandel per kast</h2>
+                        <div id="stat-winrate" class="rows rows--compact"></div>
+                        <p class="panel__help">Seiersandel regnes bare på kast som ble avgjort. Med og uten historikk sammenligner kast der agenten ba om verktøyet først.</p>
+                    </section>
+                    <section class="panel" data-panel="sprak">
+                        <div id="lang-card"></div>
+                        <h2>Åpningskast</h2>
+                        <div id="stat-opening" class="rows"></div>
+                        <h2>Gjentar forrige kast</h2>
+                        <div id="stat-repeat" class="rows rows--compact"></div>
+                        <h2>Ba om historikk</h2>
+                        <div id="stat-tool" class="rows rows--compact"></div>
+                        <h2>ELO-snitt</h2>
+                        <div id="stat-elo" class="rows rows--compact"></div>
+                        <h2>Plasser i Eliteserien</h2>
+                        <div id="stat-elite" class="rows rows--compact"></div>
+                        <h2>Ugyldige svar</h2>
+                        <div id="stat-invalid" class="rows rows--compact"></div>
+                    </section>
+                    <section class="panel" data-panel="moter">
+                        <h2>Språk mot språk</h2>
+                        <p class="panel__help">Innbyrdes seire i kamper mellom to språk. Trykk på et språk for å filtrere.</p>
+                        <ol id="stat-pairs" class="pairs"></ol>
+                        <h2>Topp fem</h2>
+                        <ol id="stat-top" class="ranking"></ol>
+                        <h2>Bunn fem</h2>
+                        <ol id="stat-bottom" class="ranking"></ol>
+                    </section>
+                    <section class="panel" data-panel="runder">
+                        <p class="panel__help">Hver runde: hvem som rykket opp og ned, og hvor mange kall runden kostet.</p>
+                        <ol id="rounds" class="rounds"></ol>
+                    </section>
+                    <section class="panel" data-panel="agent">
+                        <div id="detail-body"></div>
+                    </section>
+                    <section class="panel" data-panel="divisjon">
+                        <div id="division-body"></div>
+                    </section>
+                </div>
             </aside>
         </section>
+        <div class="logbar">
+            <button id="log-toggle" class="btn btn--quiet btn--small" type="button">Skjul logg</button>
+        </div>
         <ol id="log" class="log"></ol>
     </main>
+
+    <section id="about-panel" class="about" hidden>
+        <div class="about__card">
+            <button id="about-close" class="btn btn--quiet about__close" type="button">Lukk</button>
+            <h2>Hva skjer her?</h2>
+            <p>Hver agent er en språkmodell med navn, hjemby og språk. Agentene er delt i fire divisjoner. I hver runde pares alle i samme divisjon tilfeldig og spiller best av tre kast.</p>
+            <h3>Språkreglene</h3>
+            <p>Nordmenn, svensker og dansker snakker sine egne språk med hverandre. To med samme språk snakker det språket. Alle andre par møtes på engelsk. Hele instruksen til modellen skrives på spillspråket, så en finne som møter en tysker svarer på engelsk, og en nordmann som møter en svenske svarer på norsk.</p>
+            <h3>Verktøyet historikk</h3>
+            <p>Før hvert kast kan agenten svare med et verktøyord i stedet for et trekk. Da får den motstanderens siste fem kast og sine egne, og må svare på nytt. Det koster ett ekstra kall. Statistikken viser hvor ofte hvert språk ber om det, og om det gir flere seire.</p>
+            <h3>Poeng, ELO og divisjoner</h3>
+            <p>Seier gir tre poeng, uavgjort ett. ELO oppdateres etter hver kamp med K lik 32, som i sjakk, så en seier mot en høyere rangert motstander gir mer. Etter runden rykker de beste i hver divisjon opp og de dårligste ned, rangert på poeng i runden og deretter ELO. Antallet som flyttes skalerer med antall agenter, to per hundre.</p>
+            <h3>Statistikkene</h3>
+            <ul>
+                <li><b>Kast per språk.</b> Fordeling av stein, saks og papir per språk. Like tredeler betyr at modellen kaster tilfeldig.</li>
+                <li><b>Morsmål mot fremmedspråk.</b> Samme fordeling, delt på om agenten spilte på eget språk eller ble tvunget over på engelsk.</li>
+                <li><b>Seiersandel per kast.</b> Andel avgjorte kast som ble vunnet, delt på morsmål og fremmedspråk og på om historikk ble brukt.</li>
+                <li><b>Åpningskast.</b> Første kast i hver kamp. Mennesker åpner ofte med stein.</li>
+                <li><b>Gjentar forrige kast.</b> Hvor ofte agenten kaster det samme som sist. En tredel er tilfeldig.</li>
+                <li><b>Ugyldige svar.</b> Svar der ingen av ordene for stein, saks eller papir ble funnet. Kastet regnes som tapt.</li>
+                <li><b>Språk mot språk.</b> Innbyrdes seire mellom to språk, de hyppigste parene først.</li>
+            </ul>
+            <h3>Grav videre</h3>
+            <p>Trykk på en agent for kamphistorikk, ELO-kurve og divisjonsløp, og for å se nettverket av motstandere. Trykk på en divisjonsetikett for tabellen. Trykk på et språk hvor som helst for å filtrere pyramiden. Fanen Runder viser opp- og nedrykk runde for runde.</p>
+        </div>
+    </section>
     <script type="module" src="src/main.js"></script>
 </body>
 </html>
