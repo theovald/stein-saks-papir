@@ -40,16 +40,36 @@
             <div id="pyramid" class="pyramid">
                 <svg id="lines" class="lines" aria-hidden="true"></svg>
             </div>
-            <aside class="stats">
+            <aside id="detail" class="detail" hidden>
+                <button id="detail-close" class="btn btn--quiet detail__close" type="button">Lukk</button>
+                <div id="detail-body"></div>
+            </aside>
+            <aside id="stats" class="stats">
                 <h2>Kast per språk</h2>
                 <div id="stat-lang" class="rows"></div>
                 <p class="legend"><i class="legend__rock"></i>stein <i class="legend__scissors"></i>saks <i class="legend__paper"></i>papir</p>
                 <h2>Morsmål mot fremmedspråk</h2>
                 <div id="stat-native" class="rows"></div>
+                <h2>Seiersandel per kast</h2>
+                <div id="stat-winrate" class="rows rows--compact"></div>
+                <h2>Åpningskast per språk</h2>
+                <div id="stat-opening" class="rows"></div>
                 <h2>Ba om historikk</h2>
                 <div id="stat-tool" class="rows rows--compact"></div>
+                <h2>Gjentar forrige kast</h2>
+                <div id="stat-repeat" class="rows rows--compact"></div>
                 <h2>ELO-snitt</h2>
                 <div id="stat-elo" class="rows rows--compact"></div>
+                <h2>Plasser i Eliteserien</h2>
+                <div id="stat-elite" class="rows rows--compact"></div>
+                <h2>Språk mot språk</h2>
+                <ol id="stat-pairs" class="pairs"></ol>
+                <h2>Topp fem</h2>
+                <ol id="stat-top" class="ranking"></ol>
+                <h2>Bunn fem</h2>
+                <ol id="stat-bottom" class="ranking"></ol>
+                <h2>Ugyldige svar</h2>
+                <div id="stat-invalid" class="rows rows--compact"></div>
             </aside>
         </section>
         <ol id="log" class="log"></ol>

@@ -36,7 +36,7 @@ async function simulatedOracle(system, messages, agent, lang) {
 function hooks() {
     return {
         onMatchStart: (a, b, langs) => ui.matchStart(a, b, langs),
-        onMatchEnd: (a, b) => ui.matchEnd(a, b),
+        onMatchEnd: (a, b, r) => ui.matchEnd(a, b, r),
         onThrow: (entry, a, b) => { ui.recordThrow(entry, a, b); updateCounters(); },
     };
 }
@@ -48,6 +48,7 @@ function updateCounters() {
 
 async function runRound(oracle) {
     round++;
+    ui.round = round;
     updateCounters();
     ui.setStatus(`${modeLabel()} · spiller runde ${round}`);
     const result = await playRound(agents, oracle, hooks());
@@ -81,6 +82,7 @@ async function replay(rec) {
     for (const r of rec.rounds) {
         if (!running) return;
         round++;
+        ui.round = round;
         updateCounters();
         ui.setStatus(`Avspilling · runde ${round}`);
         for (const m of r.matches) {
@@ -92,7 +94,7 @@ async function replay(rec) {
                 updateCounters();
                 await sleep(40);
             }
-            ui.matchEnd(a, b);
+            ui.matchEnd(a, b, m);
         }
         agents.forEach((a, i) => { a.elo = r.elos[i]; a.division = r.divisions[i]; });
         ui.layout();

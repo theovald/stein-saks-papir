@@ -78,7 +78,7 @@ async function playMatch(a, b, oracle, onThrow) {
     return { a: a.id, b: b.id, langs: [la, lb], result: [wa, wb], throws: throwsLog };
 }
 
-// Runs one full round. hooks: onMatchStart(a,b,langs), onMatchEnd(a,b), onThrow(entry,a,b)
+// Runs one full round. hooks: onMatchStart(a,b,langs), onMatchEnd(a,b,result), onThrow(entry,a,b)
 export async function playRound(agents, oracle, hooks) {
     agents.forEach((ag) => { ag.roundPoints = 0; });
     const pairs = [];
@@ -91,7 +91,7 @@ export async function playRound(agents, oracle, hooks) {
             hooks.onMatchStart(a, b, playLanguages(a, b));
             const r = await playMatch(a, b, oracle, hooks.onThrow);
             results.push(r);
-            hooks.onMatchEnd(a, b);
+            hooks.onMatchEnd(a, b, r);
         }
     }
     await Promise.all(Array.from({ length: PARALLEL }, worker));
