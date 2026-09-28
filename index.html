@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stein, saks, papir på ti språk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <section id="gate" class="gate">
+        <div class="gate__card">
+            <p class="gate__kicker">Kantegas LLM-proxy</p>
+            <h1>Stein, saks, papir på ti språk</h1>
+            <p>100 agenter, fire divisjoner, opp- og nedrykk hver runde. Hvert kast er ett kall til språkmodellen.</p>
+            <label>Nøkkel<input id="key" type="password" autocomplete="off" placeholder="Lim inn nøkkel"></label>
+            <label>Modell<input id="model" type="text" autocomplete="off"></label>
+            <div class="gate__buttons">
+                <button id="go" class="btn btn--primary">Start live</button>
+                <button id="nokey" class="btn">Start uten nøkkel</button>
+            </div>
+            <p class="gate__note">Nøkkelen lagres i denne nettleseren til du trykker «Glem nøkkel».</p>
+        </div>
+    </section>
+
+    <main id="app" hidden>
+        <header class="top">
+            <h1>Stein, saks, papir på ti språk</h1>
+            <p id="status" class="top__status"></p>
+            <div class="top__counters"><span id="round">Runde 0</span><span id="calls">0 kall</span></div>
+            <div class="top__buttons">
+                <button id="toggle" class="btn btn--primary">Start</button>
+                <button id="next" class="btn">Neste runde</button>
+                <button id="download" class="btn">Last ned opptak</button>
+                <button id="forget" class="btn btn--quiet">Glem nøkkel</button>
+            </div>
+        </header>
+        <section class="stage">
+            <div id="pyramid" class="pyramid">
+                <svg id="lines" class="lines" aria-hidden="true"></svg>
+            </div>
+            <aside class="stats">
+                <h2>Kast per språk</h2>
+                <div id="stat-lang" class="rows"></div>
+                <p class="legend"><i class="legend__rock"></i>stein <i class="legend__scissors"></i>saks <i class="legend__paper"></i>papir</p>
+                <h2>Morsmål mot fremmedspråk</h2>
+                <div id="stat-native" class="rows"></div>
+                <h2>Ba om historikk</h2>
+                <div id="stat-tool" class="rows rows--compact"></div>
+                <h2>ELO-snitt</h2>
+                <div id="stat-elo" class="rows rows--compact"></div>
+            </aside>
+        </section>
+        <ol id="log" class="log"></ol>
+    </main>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
