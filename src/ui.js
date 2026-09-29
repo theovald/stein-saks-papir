@@ -1,37 +1,60 @@
-// Rendering: pyramid of divisions on the left, statistics on the right,
-// a rolling log at the bottom.
+// Rendering: pyramid of divisions on the left, tabbed statistics on the
+// right, a rolling log at the bottom. Everything that names an agent or a
+// language is clickable and opens the matching view.
 
 import { LANGUAGES, localWord } from "./languages.js";
-import { DIVISION_SIZES, DIVISION_NAMES } from "./league.js";
+import { DIVISION_NAMES, START_DIVISION } from "./league.js";
 
 const MOVES = ["rock", "scissors", "paper"];
 const MOVE_NO = { rock: "stein", scissors: "saks", paper: "papir" };
+const BAND_PAD_LEFT = 120;
+const BAND_PAD_TOP = 22;
+const NODE_SIZES = [34, 30, 26, 22, 18, 14];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function esc(s) {
+    return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
 
 export class UI {
     constructor(agents) {
         this.agents = agents;
+        this.byId = new Map(agents.map((a) => [a.id, a]));
         this.pyramid = document.getElementById("pyramid");
         this.lines = document.getElementById("lines");
         this.log = document.getElementById("log");
         this.nodes = new Map();
         this.active = new Map();
         this.history = new Map(agents.map((a) => [a.id, []]));
+        this.rounds = [];
+        this.lastMoves = new Map();
         this.selected = null;
+        this.selectedDivision = null;
+        this.langFilter = null;
         this.round = 0;
-        this.detail = document.getElementById("detail");
-        this.detailBody = document.getElementById("detail-body");
-        this.statsPanel = document.getElementById("stats");
-        document.getElementById("detail-close").addEventListener("click", () => this.select(null));
-        window.addEventListener("keydown", (e) => { if (e.key === "Escape") this.select(null); });
         this.stats = this.emptyStats();
         this.buildPyramid();
+        this.buildLegend();
+        this.buildTabs();
         this.buildStatShells();
+        this.renderRounds();
+        this.renderStats();
+        this.layout();
+        requestAnimationFrame(() => this.layout());
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => this.layout());
         window.addEventListener("resize", () => this.layout());
+        window.addEventListener("keydown", (e) => {
+            if (e.key !== "Escape") return;
+            if (this.selected !== null) this.select(null);
+            else if (this.selectedDivision !== null) this.selectDivision(null);
+            else if (this.langFilter) this.filterLang(null);
+        });
+        document.getElementById("filter-clear").addEventListener("click", () => this.filterLang(null));
     }
 
     emptyStats() {
         const perLang = {};
-        for (const code of Object.keys(LANGUAGES)) perLang[code] = { rock: 0, scissors: 0, paper: 0, invalid: 0, tool: 0, throws: 0, opening: { rock: 0, scissors: 0, paper: 0 }, repeat: 0, repeatable: 0, elite: 0 };
+        for (const code of Object.keys(LANGUAGES)) perLang[code] = { rock: 0, scissors: 0, paper: 0, invalid: 0, tool: 0, throws: 0, opening: { rock: 0, scissors: 0, paper: 0 }, repeat: 0, repeatable: 0, wins: 0, decided: 0 };
         return {
             perLang,
             native: { rock: 0, scissors: 0, paper: 0, wins: 0, decided: 0 },
@@ -42,16 +65,23 @@ export class UI {
         };
     }
 
+    // ---------- pyramid ----------
+
     buildPyramid() {
-        DIVISION_SIZES.forEach((_, d) => {
+        this.bands = [];
+        DIVISION_NAMES.forEach((name, d) => {
             const band = document.createElement("div");
             band.className = "band";
             band.dataset.division = d;
-            const label = document.createElement("span");
+            const label = document.createElement("button");
+            label.type = "button";
             label.className = "band__label";
-            label.textContent = DIVISION_NAMES[d];
+            label.title = "Åpne divisjonstabellen";
+            label.innerHTML = `${esc(name)} <span class="band__count"></span>`;
+            label.addEventListener("click", () => this.selectDivision(this.selectedDivision === d ? null : d));
             band.appendChild(label);
             this.pyramid.appendChild(band);
+            this.bands.push(band);
         });
         const layer = document.createElement("div");
         layer.className = "agents";
@@ -70,19 +100,51 @@ export class UI {
         this.layout();
     }
 
-    // Position every agent inside its band, ordered by ELO.
+    buildLegend() {
+        const bar = document.createElement("div");
+        bar.className = "langbar";
+        for (const [code, l] of Object.entries(LANGUAGES)) {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "chip";
+            chip.dataset.lang = code;
+            chip.style.setProperty("--c", l.color);
+            chip.innerHTML = `<i></i>${l.flag} ${esc(l.name)}`;
+            chip.addEventListener("click", () => this.filterLang(this.langFilter === code ? null : code));
+            bar.appendChild(chip);
+        }
+        this.langbar = bar;
+        this.pyramid.after(bar);
+    }
+
+    // Band heights follow the head count; an empty band keeps a minimum.
+    // Node size shrinks until every band fits the available height.
     layout() {
+        const counts = DIVISION_NAMES.map((_, d) => this.agents.filter((a) => a.division === d).length);
+        const { width, height } = this.pyramid.getBoundingClientRect();
+        let NODE = NODE_SIZES[0], cols = 1, rowsPer = [];
+        for (const size of NODE_SIZES) {
+            NODE = size;
+            cols = Math.max(1, Math.floor((width - BAND_PAD_LEFT - 20) / NODE));
+            rowsPer = counts.map((n) => Math.max(1, Math.ceil(n / cols)));
+            const need = rowsPer.reduce((t, r) => t + r * NODE + BAND_PAD_TOP, 0) + 6 * (DIVISION_NAMES.length - 1);
+            if (need <= height) break;
+        }
+        const NODE_R = (NODE - 6) / 2;
+        this.nodeR = NODE_R;
+        this.pyramid.style.setProperty("--node", `${NODE - 6}px`);
+        this.pyramid.style.gridTemplateRows = rowsPer.map((r) => `minmax(${r * NODE + BAND_PAD_TOP}px, ${r}fr)`).join(" ");
+        this.bands.forEach((b, d) => { b.querySelector(".band__count").textContent = counts[d] ? counts[d] : "tom"; });
         const rect = this.pyramid.getBoundingClientRect();
-        const bands = [...this.pyramid.querySelectorAll(".band")].map((b) => b.getBoundingClientRect());
+        const bandRects = this.bands.map((b) => b.getBoundingClientRect());
         this.pos = new Map();
-        DIVISION_SIZES.forEach((_, d) => {
+        DIVISION_NAMES.forEach((_, d) => {
             const list = this.agents.filter((a) => a.division === d).sort((x, y) => y.elo - x.elo);
-            const b = bands[d];
-            const cols = Math.min(list.length, Math.max(1, Math.floor((b.width - 140) / 34)));
+            const b = bandRects[d];
             list.forEach((ag, i) => {
                 const col = i % cols, row = Math.floor(i / cols);
-                const x = b.left - rect.left + 120 + col * 34 + 8;
-                const y = b.top - rect.top + 10 + row * 34;
+                const x = b.left - rect.left + BAND_PAD_LEFT + col * NODE + 8;
+                const y = b.top - rect.top + 12 + row * NODE;
                 this.pos.set(ag.id, [x, y]);
                 this.nodes.get(ag.id).style.transform = `translate(${x}px, ${y}px)`;
             });
@@ -106,7 +168,7 @@ export class UI {
             this.history.get(a.id).push({ round: this.round, opp: b.id, lang: r.langs[0], own: wa, other: wb, throws: r.throws.map((t) => t.a) });
             this.history.get(b.id).push({ round: this.round, opp: a.id, lang: r.langs[1], own: wb, other: wa, throws: r.throws.map((t) => t.b) });
             const key = [a.lang, b.lang].sort().join("|");
-            const pr = this.stats.pairs.get(key) || { n: 0, wins: { [a.lang]: 0, [b.lang]: 0 } };
+            const pr = this.stats.pairs.get(key) || { n: 0, wins: {} };
             pr.n++;
             if (wa > wb) pr.wins[a.lang] = (pr.wins[a.lang] || 0) + 1;
             if (wb > wa) pr.wins[b.lang] = (pr.wins[b.lang] || 0) + 1;
@@ -116,23 +178,144 @@ export class UI {
         this.drawLines();
     }
 
-    // Click on an agent: show its record and draw its network of opponents.
+    // After a round: mark movers, pause, slide them, pause, clear marks.
+    async roundEnd({ n, moves, calls }) {
+        this.rounds.push({ n, moves, calls, divisions: this.agents.map((a) => a.division), elos: this.agents.map((a) => Math.round(a.elo)) });
+        this.lastMoves = new Map(moves.map((m) => [m.id, m]));
+        for (const m of moves) this.nodes.get(m.id).classList.add(m.to < m.from ? "is-up" : "is-down");
+        await sleep(700);
+        this.layout();
+        await sleep(1000);
+        for (const m of moves) this.nodes.get(m.id).classList.remove("is-up", "is-down");
+        this.renderStats();
+        this.renderRounds();
+        if (this.selected !== null) this.renderDetail();
+        if (this.selectedDivision !== null) this.renderDivision();
+        this.applyDim();
+    }
+
+    drawLines() {
+        const NODE_R = this.nodeR || 14;
+        const rect = this.pyramid.getBoundingClientRect();
+        this.lines.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+        let svg = "";
+        if (this.selected !== null && this.pos.has(this.selected)) {
+            const [x1, y1] = this.pos.get(this.selected);
+            for (const h of this.history.get(this.selected)) {
+                const [x2, y2] = this.pos.get(h.opp);
+                const color = h.own > h.other ? "var(--win)" : h.own < h.other ? "var(--loss)" : "var(--draw)";
+                svg += `<line class="lines__net" x1="${x1 + NODE_R}" y1="${y1 + NODE_R}" x2="${x2 + NODE_R}" y2="${y2 + NODE_R}" stroke="${color}"/>`;
+            }
+        }
+        for (const { a, b, langs } of this.active.values()) {
+            const [x1, y1] = this.pos.get(a.id), [x2, y2] = this.pos.get(b.id);
+            svg += `<line x1="${x1 + NODE_R}" y1="${y1 + NODE_R}" x2="${x2 + NODE_R}" y2="${y2 + NODE_R}" stroke="${LANGUAGES[langs[0]].color}"/>`;
+        }
+
+        this.lines.innerHTML = svg;
+    }
+
+    // Dimming combines the language filter, the selected agent's network
+    // and the selected division.
+    applyDim() {
+        const net = this.selected !== null ? new Set(this.history.get(this.selected).map((h) => h.opp)) : null;
+        for (const ag of this.agents) {
+            const el = this.nodes.get(ag.id);
+            let show = true;
+            if (this.langFilter && ag.lang !== this.langFilter) show = false;
+            if (net && ag.id !== this.selected && !net.has(ag.id)) show = false;
+            if (this.selectedDivision !== null && this.selected === null && ag.division !== this.selectedDivision) show = false;
+            el.classList.toggle("is-dim", !show);
+            el.classList.toggle("is-selected", ag.id === this.selected);
+        }
+        this.bands.forEach((b, d) => b.classList.toggle("is-selected", d === this.selectedDivision));
+        this.langbar.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c.dataset.lang === this.langFilter));
+    }
+
+    // ---------- selection ----------
+
     select(id) {
         this.selected = id;
-        for (const [aid, el] of this.nodes) {
-            el.classList.toggle("is-selected", aid === id);
-            el.classList.toggle("is-dim", id !== null && aid !== id && !this.history.get(id).some((h) => h.opp === aid));
-        }
-        this.detail.hidden = id === null;
-        this.statsPanel.hidden = id !== null;
-        if (id !== null) this.renderDetail();
+        this.showTab("agent", id !== null);
+        if (id !== null) { this.renderDetail(); this.activateTab("agent"); }
+        else if (this.activeTab === "agent") this.activateTab(this.selectedDivision !== null ? "divisjon" : "oversikt");
+        this.applyDim();
         this.drawLines();
     }
 
+    selectDivision(d) {
+        this.selectedDivision = d;
+        this.showTab("divisjon", d !== null);
+        if (d !== null) { this.renderDivision(); this.activateTab("divisjon"); }
+        else if (this.activeTab === "divisjon") this.activateTab("oversikt");
+        this.applyDim();
+    }
+
+    filterLang(code) {
+        this.langFilter = code;
+        const box = document.getElementById("filter");
+        box.hidden = !code;
+        if (code) document.getElementById("filter-label").innerHTML = `Filter: <b style="--c:${LANGUAGES[code].color}">${LANGUAGES[code].flag} ${esc(LANGUAGES[code].name)}</b>`;
+        document.querySelectorAll(".row[data-lang]").forEach((r) => r.classList.toggle("is-filtered", r.dataset.lang === code));
+        this.renderLangCard();
+        if (code) this.activateTab("sprak");
+        this.applyDim();
+    }
+
+    // ---------- tabs ----------
+
+    buildTabs() {
+        this.activeTab = "oversikt";
+        document.querySelectorAll("#tabs .tab").forEach((t) => t.addEventListener("click", () => this.activateTab(t.dataset.tab)));
+    }
+
+    activateTab(name) {
+        this.activeTab = name;
+        document.querySelectorAll("#tabs .tab").forEach((t) => t.classList.toggle("is-active", t.dataset.tab === name));
+        document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("is-active", p.dataset.panel === name));
+    }
+
+    showTab(name, on) {
+        document.querySelector(`#tabs .tab[data-tab="${name}"]`).hidden = !on;
+    }
+
+    // ---------- clickable helpers ----------
+
+    agentLink(ag, extraClass = "") {
+        return `<button type="button" class="lnk lnk--agent ${extraClass}" data-id="${ag.id}" style="--c:${LANGUAGES[ag.lang].color}">${LANGUAGES[ag.lang].flag} ${esc(ag.name)}</button>`;
+    }
+
+    langLink(code) {
+        return `<button type="button" class="lnk lnk--lang" data-lang="${code}" style="--c:${LANGUAGES[code].color}">${LANGUAGES[code].flag} ${esc(LANGUAGES[code].name)}</button>`;
+    }
+
+    wire(root) {
+        root.querySelectorAll(".lnk--agent").forEach((b) => b.addEventListener("click", () => this.select(Number(b.dataset.id))));
+        root.querySelectorAll(".lnk--lang").forEach((b) => b.addEventListener("click", () => this.filterLang(this.langFilter === b.dataset.lang ? null : b.dataset.lang)));
+    }
+
+    // ---------- agent detail ----------
+
+    sparkline(values, { min, max, invert = false, step = false }) {
+        if (values.length < 2) return `<p class="detail__facts">Kommer etter første runde</p>`;
+        const w = 320, h = 60, pad = 4;
+        const lo = min ?? Math.min(...values), hi = max ?? Math.max(...values);
+        const span = hi - lo || 1;
+        const px = (i) => pad + (i * (w - 2 * pad)) / (values.length - 1);
+        const py = (v) => { const t = (v - lo) / span; return pad + (invert ? t : 1 - t) * (h - 2 * pad); };
+        let d = "";
+        values.forEach((v, i) => {
+            if (i === 0) d += `M${px(i)},${py(v)}`;
+            else if (step) d += ` H${px(i)} V${py(v)}`;
+            else d += ` L${px(i)},${py(v)}`;
+        });
+        const dots = values.map((v, i) => `<circle cx="${px(i)}" cy="${py(v)}" r="2.5"/>`).join("");
+        return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/>${dots}</svg>`;
+    }
+
     renderDetail() {
-        const ag = this.agents.find((a) => a.id === this.selected);
+        const ag = this.byId.get(this.selected);
         const hist = this.history.get(ag.id);
-        const byId = new Map(this.agents.map((a) => [a.id, a]));
         const w = hist.filter((h) => h.own > h.other).length;
         const l = hist.filter((h) => h.own < h.other).length;
         const d = hist.length - w - l;
@@ -141,40 +324,82 @@ export class UI {
         for (const h of hist) for (const t of h.throws) { throws++; if (t.move) counts[t.move]++; if (t.tool) tool++; if (!t.native) foreign++; }
         const pct = (n) => throws ? Math.round((100 * n) / throws) : 0;
         const rows = hist.slice().reverse().map((h) => {
-            const o = byId.get(h.opp);
+            const o = this.byId.get(h.opp);
             const cls = h.own > h.other ? "win" : h.own < h.other ? "loss" : "draw";
-            return `<li class="detail__match detail__match--${cls}"><span>R${h.round}</span><button type="button" class="detail__opp" data-id="${o.id}" style="--c:${LANGUAGES[o.lang].color}">${LANGUAGES[o.lang].flag} ${o.name}</button><span>${LANGUAGES[h.lang].name}</span><b>${h.own}–${h.other}</b></li>`;
+            const seq = h.throws.map((t) => (t.move ? MOVE_NO[t.move] : "ugyldig") + (t.tool ? "*" : "")).join(", ");
+            return `<li class="detail__match detail__match--${cls}" title="${esc(seq)}"><span>R${h.round}</span>${this.agentLink(o)}<span>${esc(LANGUAGES[h.lang].name)}</span><b>${h.own}–${h.other}</b></li>`;
         }).join("");
-        this.detailBody.innerHTML = `
-            <p class="detail__kicker" style="--c:${LANGUAGES[ag.lang].color}">${LANGUAGES[ag.lang].flag} ${LANGUAGES[ag.lang].name} · ${ag.city}</p>
-            <h2>${ag.name}</h2>
-            <p class="detail__facts">${DIVISION_NAMES[ag.division]} · ELO ${Math.round(ag.elo)} · ${ag.points} poeng</p>
+        const divSeries = [START_DIVISION, ...this.rounds.map((r) => r.divisions[ag.id])];
+        const eloSeries = [1000, ...this.rounds.map((r) => r.elos[ag.id])];
+        const mv = this.lastMoves.get(ag.id);
+        const moveNote = mv ? (mv.to < mv.from ? `<span class="up">▲ rykket opp</span>` : `<span class="down">▼ rykket ned</span>`) : "";
+        document.getElementById("detail-body").innerHTML = `
+            <div class="detail__head">
+                <p class="detail__kicker">${this.langLink(ag.lang)} · ${esc(ag.city)}</p>
+                <button type="button" class="btn btn--quiet btn--small" id="detail-close">Lukk</button>
+            </div>
+            <h2>${esc(ag.name)}</h2>
+            <p class="detail__facts"><button type="button" class="lnk lnk--div" data-d="${ag.division}">${DIVISION_NAMES[ag.division]}</button> · ELO ${Math.round(ag.elo)} · ${ag.points} poeng ${moveNote}</p>
             <p class="detail__facts">${w} seire, ${d} uavgjort, ${l} tap · ${hist.length} kamper</p>
             <div class="row"><span class="row__label">Kast</span><div class="bar"><i class="bar__rock" style="width:${pct(counts.rock)}%"></i><i class="bar__scissors" style="width:${pct(counts.scissors)}%"></i><i class="bar__paper" style="width:${pct(counts.paper)}%"></i></div><span class="row__n">stein ${counts.rock} · saks ${counts.scissors} · papir ${counts.paper}</span></div>
-            <p class="detail__facts">Ba om historikk i ${pct(tool)} % av kastene · ${pct(foreign)} % på fremmedspråk</p>
+            <p class="detail__facts">Ba om historikk i ${pct(tool)} % av kastene · ${pct(foreign)} % av kastene på fremmedspråk</p>
+            <h3>Divisjon per runde</h3>
+            ${this.sparkline(divSeries, { min: 0, max: DIVISION_NAMES.length - 1, invert: true, step: true })}
+            <p class="spark__axis"><span>Eliteserien øverst</span><span>4. divisjon nederst</span></p>
+            <h3>ELO per runde</h3>
+            ${this.sparkline(eloSeries, {})}
+            <p class="spark__axis"><span>lavest ${Math.min(...eloSeries)}</span><span>høyest ${Math.max(...eloSeries)}</span></p>
             <h3>Kamper</h3>
             <ol class="detail__matches">${rows || "<li>Ingen kamper ennå</li>"}</ol>`;
-        this.detailBody.querySelectorAll(".detail__opp").forEach((b) => b.addEventListener("click", () => this.select(Number(b.dataset.id))));
+        const body = document.getElementById("detail-body");
+        this.wire(body);
+        body.querySelector("#detail-close").addEventListener("click", () => this.select(null));
+        body.querySelector(".lnk--div").addEventListener("click", () => this.selectDivision(ag.division));
     }
 
-    drawLines() {
-        const rect = this.pyramid.getBoundingClientRect();
-        this.lines.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
-        let svg = "";
-        if (this.selected !== null) {
-            const [x1, y1] = this.pos.get(this.selected);
-            for (const h of this.history.get(this.selected)) {
-                const [x2, y2] = this.pos.get(h.opp);
-                const color = h.own > h.other ? "var(--win)" : h.own < h.other ? "var(--loss)" : "var(--draw)";
-                svg += `<line class="lines__net" x1="${x1 + 14}" y1="${y1 + 14}" x2="${x2 + 14}" y2="${y2 + 14}" stroke="${color}"/>`;
-            }
-        }
-        for (const { a, b, langs } of this.active.values()) {
-            const [x1, y1] = this.pos.get(a.id), [x2, y2] = this.pos.get(b.id);
-            svg += `<line x1="${x1 + 14}" y1="${y1 + 14}" x2="${x2 + 14}" y2="${y2 + 14}" stroke="${LANGUAGES[langs[0]].color}"/>`;
-        }
-        this.lines.innerHTML = svg;
+    // ---------- division table ----------
+
+    renderDivision() {
+        const d = this.selectedDivision;
+        const list = this.agents.filter((a) => a.division === d).sort((x, y) => (y.roundPoints - x.roundPoints) || (y.elo - x.elo));
+        const rows = list.map((ag, i) => {
+            const mv = this.lastMoves.get(ag.id);
+            const arrow = mv ? (mv.to < mv.from ? `<span class="up" title="Rykket opp hit">▲</span>` : `<span class="down" title="Rykket ned hit">▼</span>`) : "";
+            return `<tr><td>${i + 1}</td><td>${this.agentLink(ag)}</td><td>${this.langLink(ag.lang)}</td><td>${ag.roundPoints}</td><td>${ag.points}</td><td>${Math.round(ag.elo)}</td><td>${arrow}</td></tr>`;
+        }).join("");
+        const langCount = {};
+        for (const ag of list) langCount[ag.lang] = (langCount[ag.lang] || 0) + 1;
+        const mix = Object.entries(langCount).sort((x, y) => y[1] - x[1]).map(([c, n]) => `${this.langLink(c)} ${n}`).join(" · ");
+        document.getElementById("division-body").innerHTML = `
+            <div class="detail__head"><h2>${DIVISION_NAMES[d]}</h2><button type="button" class="btn btn--quiet btn--small" id="division-close">Lukk</button></div>
+            <p class="detail__facts">${list.length} agenter${list.length ? " · " + mix : ""}</p>
+            ${list.length ? `<table class="table"><thead><tr><th>#</th><th>Agent</th><th>Språk</th><th title="Poeng i siste runde">Runde</th><th title="Poeng totalt">Totalt</th><th>ELO</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : "<p class='detail__facts'>Ingen agenter her akkurat nå.</p>"}`;
+        const body = document.getElementById("division-body");
+        this.wire(body);
+        body.querySelector("#division-close").addEventListener("click", () => this.selectDivision(null));
     }
+
+    // ---------- rounds ----------
+
+    renderRounds() {
+        const box = document.getElementById("rounds");
+        if (!this.rounds.length) { box.innerHTML = "<li class='detail__facts'>Ingen runder spilt ennå.</li>"; return; }
+        box.innerHTML = this.rounds.slice().reverse().map((r) => {
+            const ups = r.moves.filter((m) => m.to < m.from), downs = r.moves.filter((m) => m.to > m.from);
+            const up = ups.map((m) => this.agentLink(this.byId.get(m.id))).join(" ");
+            const down = downs.map((m) => this.agentLink(this.byId.get(m.id))).join(" ");
+            const counts = DIVISION_NAMES.map((_, d) => r.divisions.filter((x) => x === d).length).join(" / ");
+            return `<li class="roundrow">
+                <div class="roundrow__head"><b>Runde ${r.n}</b><span>${r.calls} kall</span></div>
+                <p class="detail__facts">Divisjoner etterpå, øverst til nederst: ${counts}</p>
+                <p class="roundrow__list"><span class="up">▲ ${ups.length}</span> ${up || "ingen"}</p>
+                <p class="roundrow__list"><span class="down">▼ ${downs.length}</span> ${down || "ingen"}</p>
+            </li>`;
+        }).join("");
+        this.wire(box);
+    }
+
+    // ---------- stats ----------
 
     recordThrow(entry, a, b) {
         for (const [side, ag, key] of [[entry.a, a, "a"], [entry.b, b, "b"]]) {
@@ -184,8 +409,8 @@ export class UI {
             const nf = side.native ? this.stats.native : this.stats.foreign;
             const tk = side.tool ? this.stats.tool : this.stats.notool;
             if (entry.winner) {
-                nf.decided++; tk.decided++;
-                if (entry.winner === key) { nf.wins++; tk.wins++; }
+                nf.decided++; tk.decided++; s.decided++;
+                if (entry.winner === key) { nf.wins++; tk.wins++; s.wins++; }
             }
             if (side.move) {
                 s[side.move]++;
@@ -202,35 +427,39 @@ export class UI {
     addLog(ag, side) {
         const li = document.createElement("li");
         const move = side.move ? localWord(side.lang, side.move) : "ugyldig";
-        li.innerHTML = `<b style="--c:${LANGUAGES[ag.lang].color}">${LANGUAGES[ag.lang].flag} ${ag.name}</b> <span class="log__move">${move}</span>${side.tool ? ' <span class="log__tool">historikk</span>' : ""} <span class="log__text"></span>`;
+        li.innerHTML = `${this.agentLink(ag, "log__name")} <span class="log__move">${esc(move)}</span>${side.tool ? ' <span class="log__tool">historikk</span>' : ""} <span class="log__text"></span>`;
         li.querySelector(".log__text").textContent = side.text.replace(/\s+/g, " ").slice(0, 140);
+        this.wire(li);
         this.log.prepend(li);
         while (this.log.children.length > 12) this.log.lastChild.remove();
     }
 
+    langRow(code, single) {
+        const l = LANGUAGES[code];
+        const bar = single ? `<div class="bar bar--single"><i></i></div>` : `<div class="bar"><i class="bar__rock"></i><i class="bar__scissors"></i><i class="bar__paper"></i></div>`;
+        return `<div class="row" data-lang="${code}"><button type="button" class="row__label lnk lnk--lang" data-lang="${code}" style="--c:${l.color}">${l.flag} ${esc(l.name)}</button>${bar}<span class="row__n"></span></div>`;
+    }
+
     buildStatShells() {
-        const langs = document.getElementById("stat-lang");
-        for (const [code, l] of Object.entries(LANGUAGES)) {
-            langs.insertAdjacentHTML("beforeend", `<div class="row" data-lang="${code}"><span class="row__label">${l.flag} ${l.name}</span><div class="bar"><i class="bar__rock"></i><i class="bar__scissors"></i><i class="bar__paper"></i></div><span class="row__n"></span></div>`);
+        for (const id of ["stat-lang", "stat-opening"]) {
+            const box = document.getElementById(id);
+            box.innerHTML = Object.keys(LANGUAGES).map((c) => this.langRow(c, false)).join("");
+            this.wire(box);
+        }
+        for (const id of ["stat-tool", "stat-elo", "stat-repeat", "stat-invalid", "stat-elite"]) {
+            const box = document.getElementById(id);
+            box.innerHTML = Object.keys(LANGUAGES).map((c) => this.langRow(c, true)).join("");
+            this.wire(box);
         }
         const nf = document.getElementById("stat-native");
         for (const key of ["native", "foreign"]) {
             nf.insertAdjacentHTML("beforeend", `<div class="row" data-key="${key}"><span class="row__label">${key === "native" ? "Morsmål" : "Fremmedspråk"}</span><div class="bar"><i class="bar__rock"></i><i class="bar__scissors"></i><i class="bar__paper"></i></div><span class="row__n"></span></div>`);
         }
-        const open = document.getElementById("stat-opening");
-        for (const [code, l] of Object.entries(LANGUAGES)) {
-            open.insertAdjacentHTML("beforeend", `<div class="row" data-lang="${code}"><span class="row__label">${l.flag} ${l.name}</span><div class="bar"><i class="bar__rock"></i><i class="bar__scissors"></i><i class="bar__paper"></i></div><span class="row__n"></span></div>`);
-        }
-        for (const id of ["stat-tool", "stat-elo", "stat-repeat", "stat-invalid", "stat-elite"]) {
-            const box = document.getElementById(id);
-            for (const [code, l] of Object.entries(LANGUAGES)) {
-                box.insertAdjacentHTML("beforeend", `<div class="row" data-lang="${code}"><span class="row__label">${l.flag} ${l.name}</span><div class="bar bar--single"><i></i></div><span class="row__n"></span></div>`);
-            }
-        }
         const wr = document.getElementById("stat-winrate");
         for (const [key, label] of [["native", "Morsmål"], ["foreign", "Fremmedspråk"], ["tool", "Med historikk"], ["notool", "Uten historikk"]]) {
             wr.insertAdjacentHTML("beforeend", `<div class="row" data-key="${key}"><span class="row__label">${label}</span><div class="bar bar--single"><i></i></div><span class="row__n"></span></div>`);
         }
+        this.renderLangCard();
     }
 
     fillBar(row, counts) {
@@ -245,9 +474,34 @@ export class UI {
         r.querySelector(".row__n").textContent = text;
     }
 
+    // Summary card for the filtered language, at the top of the Språk tab.
+    renderLangCard() {
+        const box = document.getElementById("lang-card");
+        const code = this.langFilter;
+        if (!code) { box.innerHTML = ""; return; }
+        const s = this.stats.perLang[code];
+        const list = this.agents.filter((a) => a.lang === code).sort((x, y) => y.elo - x.elo);
+        const mean = list.length ? Math.round(list.reduce((n, a) => n + a.elo, 0) / list.length) : 0;
+        const divs = DIVISION_NAMES.map((name, d) => `${name} ${list.filter((a) => a.division === d).length}`).join(" · ");
+        const pct = (n, dd) => (dd ? Math.round((100 * n) / dd) : 0);
+        box.innerHTML = `
+            <div class="langcard" style="--c:${LANGUAGES[code].color}">
+                <h2>${LANGUAGES[code].flag} ${esc(LANGUAGES[code].name)}</h2>
+                <p class="detail__facts">${list.length} agenter · ELO-snitt ${mean} · ${s.throws} kast</p>
+                <p class="detail__facts">Vinner ${pct(s.wins, s.decided)} % av avgjorte kast · historikk i ${pct(s.tool, s.throws)} % · gjentar ${pct(s.repeat, s.repeatable)} % · ${s.invalid} ugyldige</p>
+                <p class="detail__facts">${divs}</p>
+                <p class="detail__facts">Beste: ${list.slice(0, 3).map((a) => `${this.agentLink(a)} ${Math.round(a.elo)}`).join(" · ") || "ingen"}</p>
+            </div>`;
+        this.wire(box);
+    }
+
     renderStats() {
+        const any = Object.values(this.stats.perLang).some((s) => s.throws > 0);
+        document.querySelectorAll(".panel__empty").forEach((e) => { e.hidden = any; });
+        document.querySelectorAll(".panel__data").forEach((e) => { e.hidden = !any; });
         const eliteN = {};
         for (const a of this.agents) if (a.division === 0) eliteN[a.lang] = (eliteN[a.lang] || 0) + 1;
+        const maxElite = Math.max(1, ...Object.values(eliteN));
         for (const [code, s] of Object.entries(this.stats.perLang)) {
             this.fillBar(document.querySelector(`#stat-lang .row[data-lang="${code}"]`), s);
             this.fillBar(document.querySelector(`#stat-opening .row[data-lang="${code}"]`), s.opening);
@@ -256,34 +510,37 @@ export class UI {
             this.fillSingle(`#stat-tool .row[data-lang="${code}"]`, pct(s.tool, s.throws), txt(s.tool, s.throws));
             this.fillSingle(`#stat-repeat .row[data-lang="${code}"]`, pct(s.repeat, s.repeatable), txt(s.repeat, s.repeatable));
             this.fillSingle(`#stat-invalid .row[data-lang="${code}"]`, pct(s.invalid, s.throws) * 5, s.throws ? `${s.invalid}` : "");
-            this.fillSingle(`#stat-elite .row[data-lang="${code}"]`, (eliteN[code] || 0) * 10, `${eliteN[code] || 0}`);
+            this.fillSingle(`#stat-elite .row[data-lang="${code}"]`, (100 * (eliteN[code] || 0)) / maxElite, `${eliteN[code] || 0}`);
         }
         for (const key of ["native", "foreign", "tool", "notool"]) {
             const w = this.stats[key];
             this.fillSingle(`#stat-winrate .row[data-key="${key}"]`, w.decided ? (100 * w.wins) / w.decided : 0, w.decided ? `${Math.round((100 * w.wins) / w.decided)} %` : "");
         }
-        const pairs = [...this.stats.pairs.entries()].filter(([k]) => k.split("|")[0] !== k.split("|")[1]).sort((x, y) => y[1].n - x[1].n).slice(0, 8);
-        document.getElementById("stat-pairs").innerHTML = pairs.map(([k, p]) => {
+        const pairs = [...this.stats.pairs.entries()].filter(([k]) => k.split("|")[0] !== k.split("|")[1]).sort((x, y) => y[1].n - x[1].n).slice(0, 10);
+        const pairsBox = document.getElementById("stat-pairs");
+        pairsBox.innerHTML = pairs.map(([k, p]) => {
             const [x, y] = k.split("|");
-            return `<li class="pair"><span>${LANGUAGES[x].flag} ${LANGUAGES[x].name}</span><b>${p.wins[x] || 0}–${p.wins[y] || 0}</b><span>${LANGUAGES[y].flag} ${LANGUAGES[y].name}</span><small>${p.n} kamper</small></li>`;
+            return `<li class="pair">${this.langLink(x)}<b>${p.wins[x] || 0}–${p.wins[y] || 0}</b>${this.langLink(y)}<small>${p.n} kamper</small></li>`;
         }).join("") || "<li>Ingen kamper ennå</li>";
+        this.wire(pairsBox);
         const top = [...this.agents].sort((x, y) => y.elo - x.elo);
-        const line = (a) => `<li><span style="--c:${LANGUAGES[a.lang].color}">${LANGUAGES[a.lang].flag} ${a.name}</span><b>${Math.round(a.elo)}</b></li>`;
-        document.getElementById("stat-top").innerHTML = top.slice(0, 5).map(line).join("");
-        document.getElementById("stat-bottom").innerHTML = top.slice(-5).reverse().map(line).join("");
+        const line = (a) => `<li>${this.agentLink(a)}<span>${DIVISION_NAMES[a.division]}</span><b>${Math.round(a.elo)}</b></li>`;
+        const topBox = document.getElementById("stat-top"), botBox = document.getElementById("stat-bottom");
+        topBox.innerHTML = top.slice(0, 5).map(line).join("");
+        botBox.innerHTML = top.slice(-5).reverse().map(line).join("");
+        this.wire(topBox); this.wire(botBox);
         this.fillBar(document.querySelector('#stat-native .row[data-key="native"]'), this.stats.native);
         this.fillBar(document.querySelector('#stat-native .row[data-key="foreign"]'), this.stats.foreign);
         const means = {};
         for (const code of Object.keys(LANGUAGES)) {
             const list = this.agents.filter((a) => a.lang === code);
-            means[code] = list.reduce((n, a) => n + a.elo, 0) / list.length;
+            means[code] = list.length ? list.reduce((n, a) => n + a.elo, 0) / list.length : 1000;
         }
         const lo = Math.min(...Object.values(means)), hi = Math.max(...Object.values(means));
         for (const [code, m] of Object.entries(means)) {
-            const r = document.querySelector(`#stat-elo .row[data-lang="${code}"]`);
-            r.querySelector("i").style.width = `${hi > lo ? ((m - lo) / (hi - lo)) * 100 : 50}%`;
-            r.querySelector(".row__n").textContent = Math.round(m);
+            this.fillSingle(`#stat-elo .row[data-lang="${code}"]`, hi > lo ? ((m - lo) / (hi - lo)) * 100 : 50, `${Math.round(m)}`);
         }
+        if (this.langFilter) this.renderLangCard();
     }
 
     setStatus(text) {

@@ -4,6 +4,7 @@
 import { createAgents } from "./agents.js";
 import { assignDivisions, playRound, callEstimate } from "./league.js";
 import { complete, getKey, setKey, getModel, setModel, currentModel, stats as llmStats } from "./llm.js";
+import { MODELS, costUsd, formatNok, formatUsd, priceFor } from "./models.js";
 import { MOVE_LABEL, TOOL_WORD } from "./languages.js";
 import { UI } from "./ui.js";
 
@@ -41,9 +42,15 @@ function hooks() {
     };
 }
 
+function runningCost() {
+    if (mode !== "live") return "";
+    const usd = costUsd(currentModel(), llmStats.calls);
+    return usd === null ? "" : ` · ca. ${formatNok(usd)} (${formatUsd(usd)})`;
+}
+
 function updateCounters() {
     $("round").textContent = `Runde ${round}`;
-    $("calls").textContent = `${llmStats.calls} kall`;
+    $("calls").textContent = `${llmStats.calls} kall${runningCost()}`;
 }
 
 async function runRound(oracle) {
@@ -61,7 +68,10 @@ async function runRound(oracle) {
 }
 
 function modeLabel() {
-    if (mode === "live") return `Modell ${currentModel()}`;
+    if (mode === "live") {
+        const m = priceFor(currentModel());
+        return `Modell ${m ? m.label : currentModel()}`;
+    }
     if (mode === "replay") return "Avspilling fra opptak";
     return "Simulert, ingen språkmodell";
 }
@@ -169,13 +179,54 @@ async function loadRecording() {
     } catch { return null; }
 }
 
+function chosenModel() {
+    const v = $("model").value;
+    return v === "__custom__" ? $("model-custom").value.trim() : v;
+}
+
 function showEstimate() {
     const n = Number($("count").value);
-    $("estimate").textContent = `Rundt ${callEstimate(n)} kall per runde, ${n / 10} agenter per språk.`;
+    const calls = callEstimate(n);
+    const model = chosenModel();
+    const m = priceFor(model);
+    const per = costUsd(model, calls);
+    let text = `Rundt ${calls} kall per runde med ${n} agenter, ${n / 10} per språk.`;
+    if (per !== null) {
+        text += ` Ca. ${formatNok(per)} per runde, ${formatNok(per * 20)} for 20 runder (${formatUsd(per)} / ${formatUsd(per * 20)}).`;
+    } else if (model) {
+        text += " Ukjent pris for denne modellen.";
+    }
+    const approx = m && m.approx ? " Prisen for denne modellen er et anslag." : "";
+    $("estimate").innerHTML = "";
+    $("estimate").append(text, Object.assign(document.createElement("small"), {
+        textContent: `Anslag: ca. 220 tokens inn og 40 ut per kall, 60 % ekstra for verktøykall, listepris, kurs 10,50 kr per dollar.${approx}`,
+    }));
+}
+
+function fillModels() {
+    const sel = $("model");
+    for (const m of MODELS) {
+        const o = document.createElement("option");
+        o.value = m.id;
+        const usd = (n) => n.toFixed(2).replace(".", ",");
+        o.textContent = `${m.label} · ${usd(m.input)} / ${usd(m.output)} $ per M${m.approx ? " (ca.)" : ""}`;
+        sel.appendChild(o);
+    }
+    const other = document.createElement("option");
+    other.value = "__custom__";
+    other.textContent = "Annen…";
+    sel.appendChild(other);
+    const saved = getModel();
+    if (MODELS.some((m) => m.id === saved)) sel.value = saved;
+    else { sel.value = "__custom__"; $("model-custom").value = saved; }
+    const toggleCustom = () => { $("custom-wrap").hidden = sel.value !== "__custom__"; };
+    toggleCustom();
+    sel.addEventListener("change", () => { toggleCustom(); showEstimate(); });
+    $("model-custom").addEventListener("input", showEstimate);
 }
 
 async function init() {
-    $("model").value = getModel();
+    fillModels();
     $("key").value = getKey();
     showEstimate();
     $("count").addEventListener("change", showEstimate);
@@ -185,7 +236,9 @@ async function init() {
         const k = $("key").value.trim();
         if (!k) return;
         setKey(k);
-        setModel($("model").value.trim());
+        const model = chosenModel();
+        if (!model) return;
+        setModel(model);
         start("live");
     });
     $("nokey").addEventListener("click", () => start(rec ? "replay" : "simulated", rec));

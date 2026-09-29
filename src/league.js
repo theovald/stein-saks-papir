@@ -1,4 +1,4 @@
-// Four divisions, random pairing inside each division, best of three
+// Five divisions, random pairing inside each division, best of three
 // throws, ELO, promotion and relegation after every round.
 
 import { playLanguages, systemPrompt, turnPrompt, historyPrompt, isToolRequest, parseMove } from "./languages.js";
@@ -6,6 +6,9 @@ import { playLanguages, systemPrompt, turnPrompt, historyPrompt, isToolRequest, 
 export const DIVISION_NAMES = ["Eliteserien", "1. divisjon", "2. divisjon", "3. divisjon", "4. divisjon"];
 export const START_DIVISION = 2;
 export const LAST_DIVISION = DIVISION_NAMES.length - 1;
+const BEATS = { rock: "scissors", scissors: "paper", paper: "rock" };
+const K = 32;
+const PARALLEL = 10;
 
 // Rough number of model calls one round costs: half the agents are
 // matches, about 2.5 throws each, two calls per throw, plus history calls.

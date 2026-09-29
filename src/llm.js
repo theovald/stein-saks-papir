@@ -5,8 +5,9 @@
 const ENDPOINT = "https://llmproxy.kantega.no/v1/messages";
 const KEY_STORE = "ssp-proxy-key";
 const MODEL_STORE = "ssp-model";
-export const DEFAULT_MODEL = "openai/gpt-6-luna";
-const FALLBACK_MODELS = ["gpt-6-luna", "azure/gpt-6-luna", "gemini-3.1-flash-lite"];
+import { DEFAULT_MODEL } from "./models.js";
+export { DEFAULT_MODEL };
+const FALLBACK_MODELS = ["vertex_ai/claude-haiku-4-5", "gemini-3.1-flash-lite"];
 
 export const stats = { calls: 0, errors: 0 };
 

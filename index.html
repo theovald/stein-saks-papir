@@ -13,19 +13,32 @@
         <div class="gate__card">
             <p class="gate__kicker">Kantegas LLM-proxy</p>
             <h1>Stein, saks, papir på ti språk</h1>
-            <p>Språkmodell-agenter fordelt på ti språk spiller mot hverandre i fire divisjoner med opp- og nedrykk hver runde. Hvert kast er ett kall til språkmodellen, på det språket kampen spilles på.</p>
-            <label>Antall agenter
-                <select id="count">
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                    <option value="100" selected>100</option>
-                    <option value="200">200</option>
-                    <option value="500">500</option>
-                </select>
-            </label>
+            <p>Språkmodell-agenter fordelt på ti språk spiller mot hverandre i fem divisjoner med opp- og nedrykk hver runde. Hvert kast er ett kall til språkmodellen, på det språket kampen spilles på.</p>
+            <div class="gate__grid">
+                <label class="field">
+                    <span class="field__label">Antall agenter</span>
+                    <select id="count" class="field__input">
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                        <option value="500">500</option>
+                    </select>
+                </label>
+                <label class="field field--wide">
+                    <span class="field__label">Modell, listepris inn / ut per million tokens</span>
+                    <select id="model" class="field__input"></select>
+                </label>
+                <label class="field field--wide" id="custom-wrap" hidden>
+                    <span class="field__label">Modell-ID i proxyen</span>
+                    <input id="model-custom" class="field__input" type="text" autocomplete="off" placeholder="provider/modellnavn">
+                </label>
+                <label class="field field--wide">
+                    <span class="field__label">Nøkkel til Kantegas LLM-proxy</span>
+                    <input id="key" class="field__input" type="password" autocomplete="off" placeholder="Lim inn nøkkel">
+                </label>
+            </div>
             <p id="estimate" class="gate__estimate"></p>
-            <label>Nøkkel<input id="key" type="password" autocomplete="off" placeholder="Lim inn nøkkel"></label>
-            <label>Modell<input id="model" type="text" autocomplete="off"></label>
             <div class="gate__buttons">
                 <button id="go" class="btn btn--primary">Start live</button>
                 <button id="nokey" class="btn">Start uten nøkkel</button>
@@ -56,6 +69,7 @@
                     <span id="filter-label"></span>
                     <button id="filter-clear" class="btn btn--quiet btn--small" type="button">Nullstill</button>
                 </div>
+                <p class="side__help">Trykk på en agent, en divisjon eller et språk for å grave. «Om» forklarer reglene og tallene.</p>
                 <nav id="tabs" class="tabs" aria-label="Faner">
                     <button class="tab is-active" data-tab="oversikt" type="button">Oversikt</button>
                     <button class="tab" data-tab="sprak" type="button">Språk</button>
@@ -66,7 +80,8 @@
                 </nav>
                 <div class="panels">
                     <section class="panel is-active" data-panel="oversikt">
-                        <p class="panel__help">Trykk på et språk for å filtrere pyramiden. Trykk på en agent eller en divisjonsetikett i pyramiden for å grave.</p>
+                        <p class="panel__empty">Ingen kast ennå.</p>
+                        <div class="panel__data">
                         <h2>Kast per språk</h2>
                         <div id="stat-lang" class="rows"></div>
                         <p class="legend"><i class="legend__rock"></i>stein <i class="legend__scissors"></i>saks <i class="legend__paper"></i>papir</p>
@@ -74,10 +89,12 @@
                         <div id="stat-native" class="rows"></div>
                         <h2>Seiersandel per kast</h2>
                         <div id="stat-winrate" class="rows rows--compact"></div>
-                        <p class="panel__help">Seiersandel regnes bare på kast som ble avgjort. Med og uten historikk sammenligner kast der agenten ba om verktøyet først.</p>
+                        </div>
                     </section>
                     <section class="panel" data-panel="sprak">
                         <div id="lang-card"></div>
+                        <p class="panel__empty">Ingen kast ennå.</p>
+                        <div class="panel__data">
                         <h2>Åpningskast</h2>
                         <div id="stat-opening" class="rows"></div>
                         <h2>Gjentar forrige kast</h2>
@@ -90,18 +107,20 @@
                         <div id="stat-elite" class="rows rows--compact"></div>
                         <h2>Ugyldige svar</h2>
                         <div id="stat-invalid" class="rows rows--compact"></div>
+                        </div>
                     </section>
                     <section class="panel" data-panel="moter">
+                        <p class="panel__empty">Ingen kamper ennå.</p>
+                        <div class="panel__data">
                         <h2>Språk mot språk</h2>
-                        <p class="panel__help">Innbyrdes seire i kamper mellom to språk. Trykk på et språk for å filtrere.</p>
                         <ol id="stat-pairs" class="pairs"></ol>
                         <h2>Topp fem</h2>
                         <ol id="stat-top" class="ranking"></ol>
                         <h2>Bunn fem</h2>
                         <ol id="stat-bottom" class="ranking"></ol>
+                        </div>
                     </section>
                     <section class="panel" data-panel="runder">
-                        <p class="panel__help">Hver runde: hvem som rykket opp og ned, og hvor mange kall runden kostet.</p>
                         <ol id="rounds" class="rounds"></ol>
                     </section>
                     <section class="panel" data-panel="agent">
@@ -144,6 +163,6 @@
             <p>Trykk på en agent for kamphistorikk, ELO-kurve og divisjonsløp, og for å se nettverket av motstandere. Trykk på en divisjonsetikett for tabellen. Trykk på et språk hvor som helst for å filtrere pyramiden. Fanen Runder viser opp- og nedrykk runde for runde.</p>
         </div>
     </section>
-    <script type="module" src="src/main.js"></script>
+    <script type="module" src="src/main.js?v=20260929"></script>
 </body>
 </html>
