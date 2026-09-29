@@ -95,6 +95,11 @@ data/              opptak.json legges her
 
 ## Språk
 
+Systemprompten, altså hvem agenten er og hvordan den skal tenke, er alltid på
+agentens eget språk. Turprompten og svaret går på spillspråket. En finne mot en
+tysker resonnerer på finsk og svarer på engelsk.
+
+
 Åtte språk: norsk, svensk, dansk, finsk, islandsk, engelsk, tysk og
 nordsamisk. Nordsamisk møter norsk, svensk og finsk på motpartens språk,
 alt annet går på engelsk. De nordsamiske instruksene og ordene (geađgi,

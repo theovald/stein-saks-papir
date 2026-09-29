@@ -41,15 +41,20 @@ export const TOOL_WORD = {
 };
 
 // System prompt per play language. {name} {city} {opp} {oppcity}
+// Endonyms, used when telling an agent which language a match is played in.
+const ENDONYM = { no: "norsk", sv: "svenska", da: "dansk", fi: "suomi", is: "íslenska", en: "English", de: "Deutsch", se: "davvisámegiella" };
+
+// System prompt in the agent's OWN language: identity and reasoning stay
+// native, while the match itself is played in {play}. {name} {city} {opp} {oppcity} {play}
 const SYSTEM = {
-    no: "Du er {name} fra {city} og spiller stein, saks, papir mot {opp} fra {oppcity}. Svar kort, på norsk.",
-    sv: "Du är {name} från {city} och spelar sten, sax, påse mot {opp} från {oppcity}. Svara kort, på svenska.",
-    da: "Du er {name} fra {city} og spiller sten, saks, papir mod {opp} fra {oppcity}. Svar kort, på dansk.",
-    fi: "Olet {name} kaupungista {city} ja pelaat kivi, sakset, paperi -peliä vastustajaa {opp} ({oppcity}) vastaan. Vastaa lyhyesti suomeksi.",
-    is: "Þú ert {name} frá {city} og spilar steinn, skæri, blað við {opp} frá {oppcity}. Svaraðu stutt, á íslensku.",
-    en: "You are {name} from {city}, playing rock, paper, scissors against {opp} from {oppcity}. Answer briefly, in English.",
-    de: "Du bist {name} aus {city} und spielst Schere, Stein, Papier gegen {opp} aus {oppcity}. Antworte kurz, auf Deutsch.",
-    se: "Don leat {name} {city}s ja spealat geađgi, skierit, báhpir {opp} vuostá, gii lea {oppcity}s. Vástit oanehaččat, davvisámegillii.",
+    no: "Du er {name} fra {city}. Du tenker og resonnerer på norsk, ditt eget språk. Du spiller stein, saks, papir mot {opp} fra {oppcity}. Kampen føres på {play}: les motstanderens språk, og svar med trekket ditt og én kort begrunnelse på {play}.",
+    sv: "Du är {name} från {city}. Du tänker och resonerar på svenska, ditt eget språk. Du spelar sten, sax, påse mot {opp} från {oppcity}. Matchen förs på {play}: läs motståndarens språk, och svara med ditt drag och en kort motivering på {play}.",
+    da: "Du er {name} fra {city}. Du tænker og ræsonnerer på dansk, dit eget sprog. Du spiller sten, saks, papir mod {opp} fra {oppcity}. Kampen føres på {play}: læs modstanderens sprog, og svar med dit træk og én kort begrundelse på {play}.",
+    fi: "Olet {name} kaupungista {city}. Ajattelet ja päättelet suomeksi, omalla kielelläsi. Pelaat kivi, sakset, paperi -peliä vastustajaa {opp} ({oppcity}) vastaan. Peli käydään kielellä {play}: lue vastustajan kieltä ja vastaa siirrollasi ja yhdellä lyhyellä perustelulla kielellä {play}.",
+    is: "Þú ert {name} frá {city}. Þú hugsar og rökstyður á íslensku, þínu eigin máli. Þú spilar steinn, skæri, blað við {opp} frá {oppcity}. Leikurinn fer fram á {play}: lestu mál andstæðingsins og svaraðu með kasti þínu og einni stuttri röksemd á {play}.",
+    en: "You are {name} from {city}. You think and reason in English, your own language. You are playing rock, paper, scissors against {opp} from {oppcity}. The match is played in {play}: read the opponent's language, and reply with your move and one short reason in {play}.",
+    de: "Du bist {name} aus {city}. Du denkst und argumentierst auf Deutsch, deiner eigenen Sprache. Du spielst Schere, Stein, Papier gegen {opp} aus {oppcity}. Das Spiel läuft auf {play}: lies die Sprache des Gegners und antworte mit deinem Zug und einer kurzen Begründung auf {play}.",
+    se: "Don leat {name} {city}s. Don jurddašat ja ákkastalat davvisámegillii, iežat gillii. Don spealat geađgi, skierit, báhpir {opp} vuostá, gii lea {oppcity}s. Speallu čađahuvvo {play} gillii: loga vuostálasti giela, ja vástit du kastimiin ja ovtta oanehis ákkain {play} gillii.",
 };
 
 // Turn prompt. {n} {of} {tool} {a} {b} {c} {score}
@@ -81,8 +86,8 @@ function fill(template, vars) {
     return template.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
 }
 
-export function systemPrompt(lang, agent, opp) {
-    return fill(SYSTEM[lang], { name: agent.name, city: agent.city, opp: opp.name, oppcity: opp.city });
+export function systemPrompt(playLang, agent, opp) {
+    return fill(SYSTEM[agent.lang], { name: agent.name, city: agent.city, opp: opp.name, oppcity: opp.city, play: ENDONYM[playLang] });
 }
 
 export function turnPrompt(lang, n, of, score) {
