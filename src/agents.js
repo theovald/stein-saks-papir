@@ -1,4 +1,4 @@
-// Agents spread over ten languages, each with a name and a home town.
+// Agents spread over nine languages, each with a name and a home town.
 
 const NAMES = {
     no: [["Kari", "Bergen"], ["Ola", "Voss"], ["Ingrid", "Stavanger"], ["Lars", "Tromsø"], ["Marit", "Trondheim"], ["Sigurd", "Ålesund"], ["Astrid", "Odda"], ["Eirik", "Bodø"], ["Solveig", "Drammen"], ["Torstein", "Os"]],
@@ -8,9 +8,8 @@ const NAMES = {
     is: [["Guðrún", "Reykjavík"], ["Jón", "Akureyri"], ["Sigríður", "Ísafjörður"], ["Einar", "Egilsstaðir"], ["Katrín", "Selfoss"], ["Bjarni", "Húsavík"], ["Ragnheiður", "Vestmannaeyjar"], ["Magnús", "Hafnarfjörður"], ["Þóra", "Sauðárkrókur"], ["Kristján", "Keflavík"]],
     en: [["Alice", "Leeds"], ["James", "Glasgow"], ["Olivia", "Bristol"], ["Harry", "Cardiff"], ["Amelia", "Belfast"], ["George", "Norwich"], ["Grace", "Aberdeen"], ["Oliver", "Plymouth"], ["Chloe", "Dundee"], ["Jack", "Hull"]],
     de: [["Lena", "Hamburg"], ["Jonas", "Leipzig"], ["Hanna", "Freiburg"], ["Lukas", "Bremen"], ["Marie", "Dresden"], ["Felix", "Rostock"], ["Laura", "Kiel"], ["Paul", "Nürnberg"], ["Sophie", "Aachen"], ["Max", "Passau"]],
-    nl: [["Sanne", "Utrecht"], ["Daan", "Groningen"], ["Fleur", "Eindhoven"], ["Bram", "Leiden"], ["Lotte", "Nijmegen"], ["Sem", "Maastricht"], ["Noor", "Haarlem"], ["Thijs", "Zwolle"], ["Eva", "Delft"], ["Ruben", "Enschede"]],
-    fr: [["Camille", "Lyon"], ["Louis", "Nantes"], ["Chloé", "Lille"], ["Hugo", "Bordeaux"], ["Manon", "Rennes"], ["Arthur", "Toulouse"], ["Léa", "Strasbourg"], ["Gabriel", "Brest"], ["Inès", "Grenoble"], ["Jules", "Dijon"]],
-    es: [["Lucía", "Sevilla"], ["Mateo", "Bilbao"], ["Martina", "Valencia"], ["Pablo", "Zaragoza"], ["Paula", "Málaga"], ["Diego", "Oviedo"], ["Carla", "Murcia"], ["Álvaro", "Salamanca"], ["Sofía", "Granada"], ["Hugo", "Santander"]],
+    se: [["Máret", "Kárášjohka"], ["Ánde", "Guovdageaidnu"], ["Elle", "Deatnu"], ["Nils Ánte", "Romsa"], ["Risten", "Gáivuotna"], ["Mihkkal", "Unjárga"], ["Sárá", "Porsáŋgu"], ["Áilu", "Giron"], ["Inga", "Ohcejohka"], ["Jovnna", "Anár"]],
+    et: [["Kertu", "Tallinn"], ["Mart", "Tartu"], ["Liis", "Pärnu"], ["Jaan", "Narva"], ["Triin", "Viljandi"], ["Toomas", "Rakvere"], ["Kadri", "Kuressaare"], ["Priit", "Haapsalu"], ["Maarja", "Võru"], ["Andres", "Paide"]],
 };
 
 export const LANG_CODES = Object.keys(NAMES);
@@ -19,14 +18,17 @@ export const LANG_CODES = Object.keys(NAMES);
 // lists and get a number once a name repeats.
 export function createAgents(n) {
     const agents = [];
-    const per = Math.max(1, Math.round(n / LANG_CODES.length));
+    const base = Math.floor(n / LANG_CODES.length);
+    let rest = n - base * LANG_CODES.length;
     let id = 0;
     for (const lang of LANG_CODES) {
         const list = NAMES[lang];
+        const per = base + (rest > 0 ? 1 : 0);
+        if (rest > 0) rest--;
         for (let k = 0; k < per; k++) {
-            const [base, city] = list[k % list.length];
+            const [name, city] = list[k % list.length];
             const suffix = k >= list.length ? ` ${Math.floor(k / list.length) + 1}` : "";
-            agents.push({ id: id++, lang, name: base + suffix, city, elo: 1000, points: 0, roundPoints: 0, division: 0, moves: [], toolUses: 0, throws: 0 });
+            agents.push({ id: id++, lang, name: name + suffix, city, elo: 1000, points: 0, roundPoints: 0, division: 0, moves: [], toolUses: 0, throws: 0 });
         }
     }
     return agents;

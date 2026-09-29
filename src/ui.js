@@ -6,6 +6,7 @@ import { LANGUAGES, localWord } from "./languages.js";
 import { DIVISION_NAMES, START_DIVISION } from "./league.js";
 
 const MOVES = ["rock", "scissors", "paper"];
+const flagOf = (code) => LANGUAGES[code].flag || `<span class="flag--text">${LANGUAGES[code].short || code.toUpperCase()}</span>`;
 const MOVE_NO = { rock: "stein", scissors: "saks", paper: "papir" };
 const BAND_PAD_LEFT = 120;
 const BAND_PAD_TOP = 22;
@@ -25,6 +26,7 @@ export class UI {
         this.log = document.getElementById("log");
         this.nodes = new Map();
         this.active = new Map();
+        this.roundMatches = [];
         this.history = new Map(agents.map((a) => [a.id, []]));
         this.rounds = [];
         this.lastMoves = new Map();
@@ -109,7 +111,7 @@ export class UI {
             chip.className = "chip";
             chip.dataset.lang = code;
             chip.style.setProperty("--c", l.color);
-            chip.innerHTML = `<i></i>${l.flag} ${esc(l.name)}`;
+            chip.innerHTML = `<i></i>${flagOf(code)} ${esc(l.name)}`;
             chip.addEventListener("click", () => this.filterLang(this.langFilter === code ? null : code));
             bar.appendChild(chip);
         }
@@ -152,6 +154,12 @@ export class UI {
         this.drawLines();
     }
 
+    // A new round: forget last round's lines.
+    roundStart() {
+        this.roundMatches = [];
+        this.drawLines();
+    }
+
     matchStart(a, b, langs) {
         this.active.set(`${a.id}-${b.id}`, { a, b, langs });
         this.nodes.get(a.id).classList.add("is-playing");
@@ -173,7 +181,8 @@ export class UI {
             if (wa > wb) pr.wins[a.lang] = (pr.wins[a.lang] || 0) + 1;
             if (wb > wa) pr.wins[b.lang] = (pr.wins[b.lang] || 0) + 1;
             this.stats.pairs.set(key, pr);
-            if (this.selected === a.id || this.selected === b.id) this.renderDetail();
+            this.roundMatches.push({ a: a.id, b: b.id, lang: r.langs[0] });
+            if (this.selected === a.id || this.selected === b.id) { this.renderDetail(); this.applyDim(); }
         }
         this.drawLines();
     }
@@ -184,6 +193,9 @@ export class UI {
         this.lastMoves = new Map(moves.map((m) => [m.id, m]));
         for (const m of moves) this.nodes.get(m.id).classList.add(m.to < m.from ? "is-up" : "is-down");
         await sleep(700);
+        // The table reshuffles now, so last round's lines would point to new
+        // positions and mislead. Clear them before the move.
+        this.roundMatches = [];
         this.layout();
         await sleep(1000);
         for (const m of moves) this.nodes.get(m.id).classList.remove("is-up", "is-down");
@@ -198,20 +210,25 @@ export class UI {
         const NODE_R = this.nodeR || 14;
         const rect = this.pyramid.getBoundingClientRect();
         this.lines.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+        const line = (p, q, color, cls) => {
+            const [x1, y1] = this.pos.get(p), [x2, y2] = this.pos.get(q);
+            return `<line class="${cls}" x1="${x1 + NODE_R}" y1="${y1 + NODE_R}" x2="${x2 + NODE_R}" y2="${y2 + NODE_R}" stroke="${color}"/>`;
+        };
         let svg = "";
-        if (this.selected !== null && this.pos.has(this.selected)) {
-            const [x1, y1] = this.pos.get(this.selected);
+        if (this.selected === null) {
+            for (const m of this.roundMatches) {
+                if (this.pos.has(m.a) && this.pos.has(m.b)) svg += line(m.a, m.b, LANGUAGES[m.lang].color, "lines__done");
+            }
+            for (const { a, b, langs } of this.active.values()) {
+                if (this.pos.has(a.id) && this.pos.has(b.id)) svg += line(a.id, b.id, LANGUAGES[langs[0]].color, "lines__live");
+            }
+        } else if (this.pos.has(this.selected)) {
             for (const h of this.history.get(this.selected)) {
-                const [x2, y2] = this.pos.get(h.opp);
+                if (!this.pos.has(h.opp)) continue;
                 const color = h.own > h.other ? "var(--win)" : h.own < h.other ? "var(--loss)" : "var(--draw)";
-                svg += `<line class="lines__net" x1="${x1 + NODE_R}" y1="${y1 + NODE_R}" x2="${x2 + NODE_R}" y2="${y2 + NODE_R}" stroke="${color}"/>`;
+                svg += line(this.selected, h.opp, color, "lines__net");
             }
         }
-        for (const { a, b, langs } of this.active.values()) {
-            const [x1, y1] = this.pos.get(a.id), [x2, y2] = this.pos.get(b.id);
-            svg += `<line x1="${x1 + NODE_R}" y1="${y1 + NODE_R}" x2="${x2 + NODE_R}" y2="${y2 + NODE_R}" stroke="${LANGUAGES[langs[0]].color}"/>`;
-        }
-
         this.lines.innerHTML = svg;
     }
 
@@ -227,6 +244,7 @@ export class UI {
             if (this.selectedDivision !== null && this.selected === null && ag.division !== this.selectedDivision) show = false;
             el.classList.toggle("is-dim", !show);
             el.classList.toggle("is-selected", ag.id === this.selected);
+            el.classList.toggle("is-opp", net !== null && net.has(ag.id));
         }
         this.bands.forEach((b, d) => b.classList.toggle("is-selected", d === this.selectedDivision));
         this.langbar.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c.dataset.lang === this.langFilter));
@@ -255,7 +273,7 @@ export class UI {
         this.langFilter = code;
         const box = document.getElementById("filter");
         box.hidden = !code;
-        if (code) document.getElementById("filter-label").innerHTML = `Filter: <b style="--c:${LANGUAGES[code].color}">${LANGUAGES[code].flag} ${esc(LANGUAGES[code].name)}</b>`;
+        if (code) document.getElementById("filter-label").innerHTML = `Filter: <b style="--c:${LANGUAGES[code].color}">${flagOf(code)} ${esc(LANGUAGES[code].name)}</b>`;
         document.querySelectorAll(".row[data-lang]").forEach((r) => r.classList.toggle("is-filtered", r.dataset.lang === code));
         this.renderLangCard();
         if (code) this.activateTab("sprak");
@@ -282,11 +300,11 @@ export class UI {
     // ---------- clickable helpers ----------
 
     agentLink(ag, extraClass = "") {
-        return `<button type="button" class="lnk lnk--agent ${extraClass}" data-id="${ag.id}" style="--c:${LANGUAGES[ag.lang].color}">${LANGUAGES[ag.lang].flag} ${esc(ag.name)}</button>`;
+        return `<button type="button" class="lnk lnk--agent ${extraClass}" data-id="${ag.id}" style="--c:${LANGUAGES[ag.lang].color}">${flagOf(ag.lang)} ${esc(ag.name)}</button>`;
     }
 
     langLink(code) {
-        return `<button type="button" class="lnk lnk--lang" data-lang="${code}" style="--c:${LANGUAGES[code].color}">${LANGUAGES[code].flag} ${esc(LANGUAGES[code].name)}</button>`;
+        return `<button type="button" class="lnk lnk--lang" data-lang="${code}" style="--c:${LANGUAGES[code].color}">${flagOf(code)} ${esc(LANGUAGES[code].name)}</button>`;
     }
 
     wire(root) {
@@ -326,8 +344,10 @@ export class UI {
         const rows = hist.slice().reverse().map((h) => {
             const o = this.byId.get(h.opp);
             const cls = h.own > h.other ? "win" : h.own < h.other ? "loss" : "draw";
-            const seq = h.throws.map((t) => (t.move ? MOVE_NO[t.move] : "ugyldig") + (t.tool ? "*" : "")).join(", ");
-            return `<li class="detail__match detail__match--${cls}" title="${esc(seq)}"><span>R${h.round}</span>${this.agentLink(o)}<span>${esc(LANGUAGES[h.lang].name)}</span><b>${h.own}–${h.other}</b></li>`;
+            const seq = h.throws.map((t) => (t.move ? MOVE_NO[t.move] : "ugyldig") + (t.tool ? " (historikk)" : "")).join(", ");
+            const dots = h.throws.map((t) => `<i class="dot dot--${t.move || "none"}${t.tool ? " dot--tool" : ""}" title="${esc((t.move ? MOVE_NO[t.move] : "ugyldig") + (t.tool ? ", ba om historikk" : ""))}"></i>`).join("");
+            const why = h.throws.map((t) => t.text ? t.text.replace(/\s+/g, " ").slice(0, 90) : "").filter(Boolean).join(" · ");
+            return `<li class="detail__match detail__match--${cls}" title="${esc(seq)}"><span>R${h.round}</span>${this.agentLink(o)}<span>${esc(LANGUAGES[h.lang].name)}</span><span class="dots">${dots}</span><b>${h.own}–${h.other}</b><small class="detail__why">${esc(why)}</small></li>`;
         }).join("");
         const divSeries = [START_DIVISION, ...this.rounds.map((r) => r.divisions[ag.id])];
         const eloSeries = [1000, ...this.rounds.map((r) => r.elos[ag.id])];
@@ -437,7 +457,7 @@ export class UI {
     langRow(code, single) {
         const l = LANGUAGES[code];
         const bar = single ? `<div class="bar bar--single"><i></i></div>` : `<div class="bar"><i class="bar__rock"></i><i class="bar__scissors"></i><i class="bar__paper"></i></div>`;
-        return `<div class="row" data-lang="${code}"><button type="button" class="row__label lnk lnk--lang" data-lang="${code}" style="--c:${l.color}">${l.flag} ${esc(l.name)}</button>${bar}<span class="row__n"></span></div>`;
+        return `<div class="row" data-lang="${code}"><button type="button" class="row__label lnk lnk--lang" data-lang="${code}" style="--c:${l.color}">${flagOf(code)} ${esc(l.name)}</button>${bar}<span class="row__n"></span></div>`;
     }
 
     buildStatShells() {
@@ -486,7 +506,7 @@ export class UI {
         const pct = (n, dd) => (dd ? Math.round((100 * n) / dd) : 0);
         box.innerHTML = `
             <div class="langcard" style="--c:${LANGUAGES[code].color}">
-                <h2>${LANGUAGES[code].flag} ${esc(LANGUAGES[code].name)}</h2>
+                <h2>${flagOf(code)} ${esc(LANGUAGES[code].name)}</h2>
                 <p class="detail__facts">${list.length} agenter · ELO-snitt ${mean} · ${s.throws} kast</p>
                 <p class="detail__facts">Vinner ${pct(s.wins, s.decided)} % av avgjorte kast · historikk i ${pct(s.tool, s.throws)} % · gjentar ${pct(s.repeat, s.repeatable)} % · ${s.invalid} ugyldige</p>
                 <p class="detail__facts">${divs}</p>

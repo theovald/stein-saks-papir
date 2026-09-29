@@ -56,6 +56,7 @@ function updateCounters() {
 async function runRound(oracle) {
     round++;
     ui.round = round;
+    ui.roundStart();
     updateCounters();
     const callsBefore = llmStats.calls;
     ui.setStatus(`${modeLabel()} · runde ${round}: kamper pågår`);
@@ -101,6 +102,7 @@ async function replay(rec) {
         if (!running) break;
         round++;
         ui.round = round;
+    ui.roundStart();
         updateCounters();
         ui.setStatus(`Avspilling · runde ${round}: kamper pågår`);
         for (const m of r.matches) {
@@ -159,6 +161,9 @@ async function start(chosen, rec) {
     });
     $("next").addEventListener("click", () => { if (!running && !loopActive && mode !== "replay") runRound(oracle); });
     $("download").addEventListener("click", download);
+    window.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); download(); }
+    });
     $("forget").addEventListener("click", () => { setKey(""); location.reload(); });
     $("about").addEventListener("click", () => { $("about-panel").hidden = false; });
     $("about-close").addEventListener("click", () => { $("about-panel").hidden = true; });
@@ -190,7 +195,7 @@ function showEstimate() {
     const model = chosenModel();
     const m = priceFor(model);
     const per = costUsd(model, calls);
-    let text = `Rundt ${calls} kall per runde med ${n} agenter, ${n / 10} per språk.`;
+    let text = `Rundt ${calls} kall per runde med ${n} agenter, ${Math.floor(n / 9)}–${Math.ceil(n / 9)} per språk.`;
     if (per !== null) {
         text += ` Ca. ${formatNok(per)} per runde, ${formatNok(per * 20)} for 20 runder (${formatUsd(per)} / ${formatUsd(per * 20)}).`;
     } else if (model) {

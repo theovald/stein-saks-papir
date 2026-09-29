@@ -149,7 +149,10 @@ select.field__input option { background: var(--plum); color: var(--cream); }
 @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
 .lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .lines line { stroke-width: 2; opacity: 0.85; }
+.lines__done { stroke-width: 1.5; opacity: 0.22; }
+.lines__live { stroke-width: 2.5; opacity: 1; }
 .lines__net { stroke-width: 1.5; opacity: 0.7; }
+.agent.is-opp { box-shadow: 0 0 0 3px var(--cream); }
 
 /* Language legend under the pyramid */
 .langbar { display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; }
@@ -194,10 +197,17 @@ select.field__input option { background: var(--plum); color: var(--cream); }
 .panel h3 { margin: 1rem 0 0.3rem; font-size: 0.95rem; }
 .detail__facts { margin: 0.2rem 0; opacity: 0.85; font-size: 0.92rem; line-height: 1.4; }
 .detail__matches { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
-.detail__match { display: grid; grid-template-columns: 34px 1fr 90px 40px; align-items: center; gap: 0.4rem; font-size: 0.9rem; padding: 3px 6px; border-radius: 6px; border-left: 3px solid var(--draw); background: rgba(255, 248, 252, 0.05); }
+.detail__match { display: grid; grid-template-columns: 34px 1fr 90px 52px 40px; align-items: center; gap: 0.4rem; font-size: 0.9rem; padding: 3px 6px; border-radius: 6px; border-left: 3px solid var(--draw); background: rgba(255, 248, 252, 0.05); }
 .detail__match--win { border-left-color: var(--win); }
 .detail__match--loss { border-left-color: var(--loss); }
 .detail__match b { text-align: right; }
+.detail__why { grid-column: 1 / -1; opacity: 0.6; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dots { display: flex; gap: 3px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; background: rgba(255,248,252,0.2); }
+.dot--rock { background: var(--rock); }
+.dot--scissors { background: var(--scissors); }
+.dot--paper { background: var(--paper); }
+.dot--tool { box-shadow: 0 0 0 2px var(--cyan); }
 .spark { width: 100%; height: 60px; display: block; border-radius: 6px; background: rgba(255, 248, 252, 0.05); }
 .spark path { fill: none; stroke: var(--cyan); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .spark circle { fill: var(--cream); }
@@ -271,3 +281,5 @@ select.field__input option { background: var(--plum); color: var(--cream); }
     .stage > .side { grid-row: auto; }
     .stage > .pyramid { height: 70vh; }
 }
+
+.flag--text { display: inline-block; font-size: 0.7em; font-weight: 700; letter-spacing: 0.04em; padding: 0 4px; border-radius: 4px; background: var(--c, rgba(255,248,252,0.2)); color: var(--plum); vertical-align: middle; }

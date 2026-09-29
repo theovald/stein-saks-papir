@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Stein, saks, papir på ti språk</title>
+    <title>Stein, saks, papir på ni språk</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -12,8 +12,8 @@
     <section id="gate" class="gate">
         <div class="gate__card">
             <p class="gate__kicker">Kantegas LLM-proxy</p>
-            <h1>Stein, saks, papir på ti språk</h1>
-            <p>Språkmodell-agenter fordelt på ti språk spiller mot hverandre i fem divisjoner med opp- og nedrykk hver runde. Hvert kast er ett kall til språkmodellen, på det språket kampen spilles på.</p>
+            <h1>Stein, saks, papir på ni språk</h1>
+            <p>Språkmodell-agenter fordelt på ni språk spiller mot hverandre i fem divisjoner med opp- og nedrykk hver runde. Hvert kast er ett kall til språkmodellen, på det språket kampen spilles på.</p>
             <div class="gate__grid">
                 <label class="field">
                     <span class="field__label">Antall agenter</span>
@@ -49,14 +49,14 @@
 
     <main id="app" hidden>
         <header class="top">
-            <h1>Stein, saks, papir på ti språk</h1>
+            <h1>Stein, saks, papir på ni språk</h1>
             <p id="status" class="top__status"></p>
             <div class="top__counters"><span id="round">Runde 0</span><span id="calls">0 kall</span></div>
             <div class="top__buttons">
                 <button id="toggle" class="btn btn--primary">Start</button>
                 <button id="next" class="btn">Neste runde</button>
                 <button id="about" class="btn">Om</button>
-                <button id="download" class="btn">Last ned opptak</button>
+                <button id="download" class="btn" hidden>Last ned opptak</button>
                 <button id="forget" class="btn btn--quiet">Glem nøkkel</button>
             </div>
         </header>
@@ -69,7 +69,7 @@
                     <span id="filter-label"></span>
                     <button id="filter-clear" class="btn btn--quiet btn--small" type="button">Nullstill</button>
                 </div>
-                <p class="side__help">Trykk på en agent, en divisjon eller et språk for å grave. «Om» forklarer reglene og tallene.</p>
+                <p class="side__help">Trykk på en agent, en divisjon eller et språk for å grave. Linjene er rundens kamper, farget etter spillspråk. «Om» forklarer reglene og tallene.</p>
                 <nav id="tabs" class="tabs" aria-label="Faner">
                     <button class="tab is-active" data-tab="oversikt" type="button">Oversikt</button>
                     <button class="tab" data-tab="sprak" type="button">Språk</button>
@@ -142,13 +142,13 @@
         <div class="about__card">
             <button id="about-close" class="btn btn--quiet about__close" type="button">Lukk</button>
             <h2>Hva skjer her?</h2>
-            <p>Hver agent er en språkmodell med navn, hjemby og språk. Agentene er delt i fire divisjoner. I hver runde pares alle i samme divisjon tilfeldig og spiller best av tre kast.</p>
+            <p>Hver agent er en språkmodell med navn, hjemby og språk. Alle starter i 2. divisjon av fem. I hver runde pares alle i samme divisjon tilfeldig og spiller best av tre kast. Linjene i pyramiden er kampene i runden: sterke linjer spilles nå, svake er ferdige, farget etter språket kampen går på. De forsvinner når opp- og nedrykk flytter agentene.</p>
             <h3>Språkreglene</h3>
-            <p>Nordmenn, svensker og dansker snakker sine egne språk med hverandre. To med samme språk snakker det språket. Alle andre par møtes på engelsk. Hele instruksen til modellen skrives på spillspråket, så en finne som møter en tysker svarer på engelsk, og en nordmann som møter en svenske svarer på norsk.</p>
+            <p>Nordmenn, svensker og dansker snakker sine egne språk med hverandre. To med samme språk snakker det språket. En nordsamisk agent møter norsk, svensk og finsk på motpartens språk, siden de fleste samisktalende er tospråklige. Estisk og finsk er ikke gjensidig forståelige nok, så de møtes på engelsk. Alle andre par møtes på engelsk. Hele instruksen til modellen skrives på spillspråket, så en finne som møter en tysker svarer på engelsk, og en nordmann som møter en svenske svarer på norsk.</p>
             <h3>Verktøyet historikk</h3>
             <p>Før hvert kast kan agenten svare med et verktøyord i stedet for et trekk. Da får den motstanderens siste fem kast og sine egne, og må svare på nytt. Det koster ett ekstra kall. Statistikken viser hvor ofte hvert språk ber om det, og om det gir flere seire.</p>
             <h3>Poeng, ELO og divisjoner</h3>
-            <p>Seier gir tre poeng, uavgjort ett. ELO oppdateres etter hver kamp med K lik 32, som i sjakk, så en seier mot en høyere rangert motstander gir mer. Etter runden rykker de beste i hver divisjon opp og de dårligste ned, rangert på poeng i runden og deretter ELO. Antallet som flyttes skalerer med antall agenter, to per hundre.</p>
+            <p>Seier gir tre poeng, uavgjort ett. ELO oppdateres etter hver kamp med K lik 32, som i sjakk, så en seier mot en høyere rangert motstander gir mer. Etter runden rykker vinnerne opp og taperne ned, uavgjort blir stående. Eliteserien og 4. divisjon er låst i hver sin ende.</p>
             <h3>Statistikkene</h3>
             <ul>
                 <li><b>Kast per språk.</b> Fordeling av stein, saks og papir per språk. Like tredeler betyr at modellen kaster tilfeldig.</li>
@@ -159,10 +159,12 @@
                 <li><b>Ugyldige svar.</b> Svar der ingen av ordene for stein, saks eller papir ble funnet. Kastet regnes som tapt.</li>
                 <li><b>Språk mot språk.</b> Innbyrdes seire mellom to språk, de hyppigste parene først.</li>
             </ul>
+            <h3>Opptak</h3>
+            <p>Ctrl+Shift+S (Cmd+Shift+S på Mac) laster ned hele kjøringen som <code>opptak.json</code>. Legges fila i <code>data/</code>, spilles den av for dem som åpner siden uten nøkkel.</p>
             <h3>Grav videre</h3>
             <p>Trykk på en agent for kamphistorikk, ELO-kurve og divisjonsløp, og for å se nettverket av motstandere. Trykk på en divisjonsetikett for tabellen. Trykk på et språk hvor som helst for å filtrere pyramiden. Fanen Runder viser opp- og nedrykk runde for runde.</p>
         </div>
     </section>
-    <script type="module" src="src/main.js?v=20260929"></script>
+    <script type="module" src="src/main.js?v=20260929b"></script>
 </body>
 </html>

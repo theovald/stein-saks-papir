@@ -1,6 +1,6 @@
-# Stein, saks, papir på ti språk
+# Stein, saks, papir på ni språk
 
-Språkmodell-agenter fordelt på ti språk spiller stein, saks, papir mot
+Språkmodell-agenter fordelt på ni språk spiller stein, saks, papir mot
 hverandre i fem divisjoner. Hvert kast er ett ekte kall til språkmodellen,
 på det språket kampen spilles på. Antall agenter velges på startskjermen:
 20, 50, 100, 200 eller 500.
@@ -69,7 +69,7 @@ Med GPT-5.6 Luna rundt 20 øre.
 
 ## Opptak og avspilling
 
-«Last ned opptak» gir `opptak.json` med antall agenter, alle runder, kamper,
+Ctrl+Shift+S (Cmd+Shift+S på Mac) laster ned `opptak.json`; knappen er skjult fordi appen brukes live i en presentasjon. Fila inneholder med antall agenter, alle runder, kamper,
 kast, opp- og nedrykk og divisjon per agent per runde. Legg filen i
 `data/` og commit, så spiller GitHub Pages den av for alle som åpner
 siden, uten nøkkel. Avspillingen bruker antallet fra opptaket.
@@ -87,3 +87,10 @@ src/llm.js         kall mot proxyen, nøkkel og modell i localStorage
 src/ui.js          pyramide, linjer, faner, statistikk, logg
 data/              opptak.json legges her
 ```
+
+## Språk
+
+Ni språk: norsk, svensk, dansk, finsk, islandsk, engelsk, tysk, nordsamisk
+og estisk. Nordsamisk møter norsk, svensk og finsk på motpartens språk,
+alt annet går på engelsk. De nordsamiske instruksene og ordene (geađgi,
+skierit, báhpir) er maskinoversatt og bør sjekkes av en som kan språket.

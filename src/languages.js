@@ -1,4 +1,4 @@
-// Ten languages, their words for the three moves, and prompt templates.
+// Nine languages, their words for the three moves, and prompt templates.
 // The prompt is written in the language the match is played in.
 
 export const LANGUAGES = {
@@ -9,23 +9,21 @@ export const LANGUAGES = {
     is: { name: "Islandsk", flag: "🇮🇸", color: "#5B7DB1" },
     en: { name: "Engelsk", flag: "🇬🇧", color: "#9C9C9C" },
     de: { name: "Tysk", flag: "🇩🇪", color: "#F49727" },
-    nl: { name: "Nederlandsk", flag: "🇳🇱", color: "#FF7A00" },
-    fr: { name: "Fransk", flag: "🇫🇷", color: "#7B61FF" },
-    es: { name: "Spansk", flag: "🇪🇸", color: "#2FB36B" },
+    se: { name: "Nordsamisk", flag: "", color: "#2FB36B", short: "Sámi" },
+    et: { name: "Estisk", flag: "🇪🇪", color: "#7B61FF" },
 };
 
 // Word -> canonical move. Lowercased, accents kept.
 export const MOVE_WORDS = {
-    no: { stein: "rock", saks: "scissors", papir: "paper" },
-    sv: { sten: "rock", sax: "scissors", påse: "paper", papper: "paper" },
-    da: { sten: "rock", saks: "scissors", papir: "paper" },
-    fi: { kivi: "rock", sakset: "scissors", paperi: "paper" },
-    is: { steinn: "rock", skæri: "scissors", blað: "paper", pappír: "paper" },
+    no: { stein: "rock", steinen: "rock", saks: "scissors", saksen: "scissors", papir: "paper", papiret: "paper" },
+    sv: { sten: "rock", stenen: "rock", sax: "scissors", saxen: "scissors", påse: "paper", påsen: "paper", papper: "paper" },
+    da: { sten: "rock", stenen: "rock", saks: "scissors", saksen: "scissors", papir: "paper", papiret: "paper" },
+    fi: { kivi: "rock", kiven: "rock", sakset: "scissors", saksia: "scissors", paperi: "paper", paperin: "paper" },
+    is: { steinn: "rock", stein: "rock", skæri: "scissors", skærin: "scissors", blað: "paper", blaðið: "paper", pappír: "paper" },
     en: { rock: "rock", scissors: "scissors", paper: "paper" },
     de: { stein: "rock", schere: "scissors", papier: "paper" },
-    nl: { steen: "rock", schaar: "scissors", papier: "paper" },
-    fr: { pierre: "rock", ciseaux: "scissors", feuille: "paper", papier: "paper" },
-    es: { piedra: "rock", tijera: "scissors", tijeras: "scissors", papel: "paper" },
+    se: { geađgi: "rock", geađggi: "rock", skierit: "scissors", skieriid: "scissors", báhpir: "paper", báhpira: "paper" },
+    et: { kivi: "rock", kivid: "rock", käärid: "scissors", kääre: "scissors", paber: "paper", paberi: "paper" },
 };
 
 export const MOVE_LABEL = {
@@ -36,14 +34,13 @@ export const MOVE_LABEL = {
     is: ["steinn", "skæri", "blað"],
     en: ["rock", "scissors", "paper"],
     de: ["Stein", "Schere", "Papier"],
-    nl: ["steen", "schaar", "papier"],
-    fr: ["pierre", "ciseaux", "feuille"],
-    es: ["piedra", "tijeras", "papel"],
+    se: ["geađgi", "skierit", "báhpir"],
+    et: ["kivi", "käärid", "paber"],
 };
 
 export const TOOL_WORD = {
     no: "HISTORIKK", sv: "HISTORIK", da: "HISTORIK", fi: "HISTORIA", is: "SAGA",
-    en: "HISTORY", de: "VERLAUF", nl: "GESCHIEDENIS", fr: "HISTORIQUE", es: "HISTORIAL",
+    en: "HISTORY", de: "VERLAUF", se: "HISTORJÁ", et: "AJALUGU",
 };
 
 // System prompt per play language. {name} {city} {opp} {oppcity}
@@ -55,9 +52,8 @@ const SYSTEM = {
     is: "Þú ert {name} frá {city} og spilar steinn, skæri, blað við {opp} frá {oppcity}. Svaraðu stutt, á íslensku.",
     en: "You are {name} from {city}, playing rock, paper, scissors against {opp} from {oppcity}. Answer briefly, in English.",
     de: "Du bist {name} aus {city} und spielst Schere, Stein, Papier gegen {opp} aus {oppcity}. Antworte kurz, auf Deutsch.",
-    nl: "Je bent {name} uit {city} en speelt steen, papier, schaar tegen {opp} uit {oppcity}. Antwoord kort, in het Nederlands.",
-    fr: "Tu es {name} de {city} et tu joues à pierre, feuille, ciseaux contre {opp} de {oppcity}. Réponds brièvement, en français.",
-    es: "Eres {name} de {city} y juegas a piedra, papel o tijeras contra {opp} de {oppcity}. Responde brevemente, en español.",
+    se: "Don leat {name} {city}s ja spealat geađgi, skierit, báhpir {opp} vuostá, gii lea {oppcity}s. Vástit oanehaččat, davvisámegillii.",
+    et: "Sa oled {name} linnast {city} ja mängid kivi, paber, käärid vastu {opp} linnast {oppcity}. Vasta lühidalt, eesti keeles.",
 };
 
 // Turn prompt. {n} {of} {tool} {a} {b} {c} {score}
@@ -69,9 +65,8 @@ const TURN = {
     is: "Kast {n} af {of}. Staðan {score}. Ef þú vilt fyrst sjá fyrri köst andstæðingsins, svaraðu bara {tool}. Annars: svaraðu með einu orði, {a}, {b} eða {c}, og svo einni setningu um hvers vegna.",
     en: "Throw {n} of {of}. Score {score}. If you want to see the opponent's previous throws first, reply only {tool}. Otherwise: reply with one word, {a}, {b} or {c}, then one sentence on why.",
     de: "Wurf {n} von {of}. Stand {score}. Willst du zuerst die bisherigen Würfe des Gegners sehen, antworte nur {tool}. Sonst: antworte mit einem Wort, {a}, {b} oder {c}, und dann einem Satz warum.",
-    nl: "Worp {n} van {of}. Stand {score}. Wil je eerst de vorige worpen van de tegenstander zien, antwoord dan alleen {tool}. Anders: antwoord met één woord, {a}, {b} of {c}, en dan één zin waarom.",
-    fr: "Coup {n} sur {of}. Score {score}. Si tu veux d'abord voir les coups précédents de l'adversaire, réponds seulement {tool}. Sinon : réponds par un mot, {a}, {b} ou {c}, puis une phrase sur le pourquoi.",
-    es: "Tirada {n} de {of}. Marcador {score}. Si quieres ver primero las tiradas anteriores del rival, responde solo {tool}. Si no: responde con una palabra, {a}, {b} o {c}, y luego una frase de por qué.",
+    se: "Bálkestus {n}/{of}. Dilli {score}. Jus háliidat vuos oaidnit vuostálasti ovddit bálkestusaid, vástit dušše {tool}. Muđui: vástit ovtta sániin, {a}, {b} dahje {c}, ja de ovtta cealkagiin manne.",
+    et: "Vise {n}/{of}. Seis {score}. Kui tahad enne näha vastase varasemaid viskeid, vasta ainult {tool}. Muidu: vasta ühe sõnaga, {a}, {b} või {c}, ja siis ühe lausega, miks.",
 };
 
 const HISTORY = {
@@ -82,12 +77,11 @@ const HISTORY = {
     is: "Síðustu köst andstæðingsins: {opp}. Þín síðustu köst: {own}. Svaraðu nú með einu orði, {a}, {b} eða {c}, og einni setningu um hvers vegna.",
     en: "Opponent's latest throws: {opp}. Your latest throws: {own}. Now reply with one word, {a}, {b} or {c}, and one sentence on why.",
     de: "Letzte Würfe des Gegners: {opp}. Deine letzten Würfe: {own}. Antworte jetzt mit einem Wort, {a}, {b} oder {c}, und einem Satz warum.",
-    nl: "Laatste worpen van de tegenstander: {opp}. Jouw laatste worpen: {own}. Antwoord nu met één woord, {a}, {b} of {c}, en één zin waarom.",
-    fr: "Derniers coups de l'adversaire : {opp}. Tes derniers coups : {own}. Réponds maintenant par un mot, {a}, {b} ou {c}, et une phrase sur le pourquoi.",
-    es: "Últimas tiradas del rival: {opp}. Tus últimas tiradas: {own}. Responde ahora con una palabra, {a}, {b} o {c}, y una frase de por qué.",
+    se: "Vuostálasti maŋimuš bálkestusat: {opp}. Du maŋimuš bálkestusat: {own}. Vástit dál ovtta sániin, {a}, {b} dahje {c}, ja ovtta cealkagiin manne.",
+    et: "Vastase viimased visked: {opp}. Sinu viimased visked: {own}. Vasta nüüd ühe sõnaga, {a}, {b} või {c}, ja ühe lausega, miks.",
 };
 
-const NONE = { no: "ingen", sv: "inga", da: "ingen", fi: "ei mitään", is: "engin", en: "none", de: "keine", nl: "geen", fr: "aucun", es: "ninguna" };
+const NONE = { no: "ingen", sv: "inga", da: "ingen", fi: "ei mitään", is: "engin", en: "none", de: "keine", se: "ii mihkkege", et: "ühtegi" };
 
 function fill(template, vars) {
     return template.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
@@ -119,12 +113,16 @@ export function isToolRequest(lang, text) {
 
 // Parse a reply into a canonical move. Tries the play language first,
 // then every language, so an agent that slips into English still counts.
+// A word boundary that understands æøå and other letters. \b in JS is
+// ASCII-only, so «skæri» and «påse» would never match with it.
+const WORD = (w) => new RegExp("(?<!\\p{L})" + w + "(?!\\p{L})", "u");
+
 export function parseMove(lang, text) {
     const lower = text.toLowerCase();
     const tryDict = (dict) => {
         let best = null;
         for (const [word, move] of Object.entries(dict)) {
-            const i = lower.search(new RegExp("\\b" + word + "\\b"));
+            const i = lower.search(WORD(word));
             if (i >= 0 && (best === null || i < best.i)) best = { i, move };
         }
         return best ? best.move : null;
@@ -142,10 +140,15 @@ export function parseMove(lang, text) {
 // Scandinavians speak their own language to each other; everyone else
 // meets in English unless they share a language.
 const MUTUAL = new Set(["no|sv", "no|da", "sv|da"]);
+// Most Northern Sámi speakers are bilingual, so a Sámi agent meets a
+// Norwegian, Swedish or Finnish agent in that agent's language.
+const SAMI_SWITCH = new Set(["no", "sv", "fi"]);
 
 export function playLanguages(a, b) {
     if (a.lang === b.lang) return [a.lang, b.lang];
     const key = [a.lang, b.lang].sort().join("|");
     if (MUTUAL.has(key)) return [a.lang, b.lang];
+    if (a.lang === "se" && SAMI_SWITCH.has(b.lang)) return [b.lang, b.lang];
+    if (b.lang === "se" && SAMI_SWITCH.has(a.lang)) return [a.lang, a.lang];
     return ["en", "en"];
 }
