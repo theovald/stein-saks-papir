@@ -1,4 +1,4 @@
-// Nine languages, their words for the three moves, and prompt templates.
+// Eight languages, their words for the three moves, and prompt templates.
 // The prompt is written in the language the match is played in.
 
 export const LANGUAGES = {
@@ -10,7 +10,6 @@ export const LANGUAGES = {
     en: { name: "Engelsk", flag: "🇬🇧", color: "#9C9C9C" },
     de: { name: "Tysk", flag: "🇩🇪", color: "#F49727" },
     se: { name: "Nordsamisk", flag: "", color: "#2FB36B", short: "Sámi" },
-    et: { name: "Estisk", flag: "🇪🇪", color: "#7B61FF" },
 };
 
 // Word -> canonical move. Lowercased, accents kept.
@@ -23,7 +22,6 @@ export const MOVE_WORDS = {
     en: { rock: "rock", scissors: "scissors", paper: "paper" },
     de: { stein: "rock", schere: "scissors", papier: "paper" },
     se: { geađgi: "rock", geađggi: "rock", skierit: "scissors", skieriid: "scissors", báhpir: "paper", báhpira: "paper" },
-    et: { kivi: "rock", kivid: "rock", käärid: "scissors", kääre: "scissors", paber: "paper", paberi: "paper" },
 };
 
 export const MOVE_LABEL = {
@@ -35,12 +33,11 @@ export const MOVE_LABEL = {
     en: ["rock", "scissors", "paper"],
     de: ["Stein", "Schere", "Papier"],
     se: ["geađgi", "skierit", "báhpir"],
-    et: ["kivi", "käärid", "paber"],
 };
 
 export const TOOL_WORD = {
     no: "HISTORIKK", sv: "HISTORIK", da: "HISTORIK", fi: "HISTORIA", is: "SAGA",
-    en: "HISTORY", de: "VERLAUF", se: "HISTORJÁ", et: "AJALUGU",
+    en: "HISTORY", de: "VERLAUF", se: "HISTORJÁ",
 };
 
 // System prompt per play language. {name} {city} {opp} {oppcity}
@@ -53,7 +50,6 @@ const SYSTEM = {
     en: "You are {name} from {city}, playing rock, paper, scissors against {opp} from {oppcity}. Answer briefly, in English.",
     de: "Du bist {name} aus {city} und spielst Schere, Stein, Papier gegen {opp} aus {oppcity}. Antworte kurz, auf Deutsch.",
     se: "Don leat {name} {city}s ja spealat geađgi, skierit, báhpir {opp} vuostá, gii lea {oppcity}s. Vástit oanehaččat, davvisámegillii.",
-    et: "Sa oled {name} linnast {city} ja mängid kivi, paber, käärid vastu {opp} linnast {oppcity}. Vasta lühidalt, eesti keeles.",
 };
 
 // Turn prompt. {n} {of} {tool} {a} {b} {c} {score}
@@ -66,7 +62,6 @@ const TURN = {
     en: "Throw {n} of {of}. Score {score}. If you want to see the opponent's previous throws first, reply only {tool}. Otherwise: reply with one word, {a}, {b} or {c}, then one sentence on why.",
     de: "Wurf {n} von {of}. Stand {score}. Willst du zuerst die bisherigen Würfe des Gegners sehen, antworte nur {tool}. Sonst: antworte mit einem Wort, {a}, {b} oder {c}, und dann einem Satz warum.",
     se: "Bálkestus {n}/{of}. Dilli {score}. Jus háliidat vuos oaidnit vuostálasti ovddit bálkestusaid, vástit dušše {tool}. Muđui: vástit ovtta sániin, {a}, {b} dahje {c}, ja de ovtta cealkagiin manne.",
-    et: "Vise {n}/{of}. Seis {score}. Kui tahad enne näha vastase varasemaid viskeid, vasta ainult {tool}. Muidu: vasta ühe sõnaga, {a}, {b} või {c}, ja siis ühe lausega, miks.",
 };
 
 const HISTORY = {
@@ -78,10 +73,9 @@ const HISTORY = {
     en: "Opponent's latest throws: {opp}. Your latest throws: {own}. Now reply with one word, {a}, {b} or {c}, and one sentence on why.",
     de: "Letzte Würfe des Gegners: {opp}. Deine letzten Würfe: {own}. Antworte jetzt mit einem Wort, {a}, {b} oder {c}, und einem Satz warum.",
     se: "Vuostálasti maŋimuš bálkestusat: {opp}. Du maŋimuš bálkestusat: {own}. Vástit dál ovtta sániin, {a}, {b} dahje {c}, ja ovtta cealkagiin manne.",
-    et: "Vastase viimased visked: {opp}. Sinu viimased visked: {own}. Vasta nüüd ühe sõnaga, {a}, {b} või {c}, ja ühe lausega, miks.",
 };
 
-const NONE = { no: "ingen", sv: "inga", da: "ingen", fi: "ei mitään", is: "engin", en: "none", de: "keine", se: "ii mihkkege", et: "ühtegi" };
+const NONE = { no: "ingen", sv: "inga", da: "ingen", fi: "ei mitään", is: "engin", en: "none", de: "keine", se: "ii mihkkege" };
 
 function fill(template, vars) {
     return template.replace(/\{(\w+)\}/g, (_, k) => vars[k]);

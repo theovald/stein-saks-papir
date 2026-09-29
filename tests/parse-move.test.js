@@ -27,9 +27,6 @@ const cases = [
     ["se", "Skierit. Geađgi lea menddo čielggas.", "scissors"],
     ["se", "Báhpir, go vuostálasti bálkestii geađggi.", "paper"],
     ["se", "Geađgi!", "rock"],
-    ["et", "Käärid. Kivi on liiga ilmne.", "scissors"],
-    ["et", "Paber, sest vastane viskas kivi.", "paper"],
-    ["et", "kivi.", "rock"],
     // English answer on a Norwegian match still counts.
     ["no", "Scissors. Rock is predictable.", "scissors"],
     // Punctuation glued to the word.

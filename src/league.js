@@ -32,7 +32,9 @@ function score(a, b) {
     return `${a}-${b}`;
 }
 
-// One throw for one agent. Returns { move, tool, text }.
+// One throw for one agent. Returns { move, tool, text, system, messages }.
+// messages is the full exchange, including the tool reply, so the match
+// view can show exactly what the model saw and said.
 async function throwFor(agent, opp, lang, n, of, sc, oracle, ownHistory, oppHistory) {
     const system = systemPrompt(lang, agent, opp);
     const messages = [{ role: "user", content: turnPrompt(lang, n, of, sc) }];
@@ -45,9 +47,10 @@ async function throwFor(agent, opp, lang, n, of, sc, oracle, ownHistory, oppHist
         messages.push({ role: "user", content: historyPrompt(lang, oppHistory.slice(-5), ownHistory.slice(-5)) });
         text = await oracle(system, messages, agent, lang);
     }
+    messages.push({ role: "assistant", content: text });
     agent.throws++;
     const move = parseMove(lang, text);
-    return { move, tool, text };
+    return { move, tool, text, system, messages };
 }
 
 async function playMatch(a, b, oracle, onThrow) {
@@ -67,7 +70,8 @@ async function playMatch(a, b, oracle, onThrow) {
         else if (ta.move && tb.move && ta.move !== tb.move) winner = BEATS[ta.move] === tb.move ? "a" : "b";
         if (winner === "a") wa++;
         if (winner === "b") wb++;
-        const entry = { n, a: { id: a.id, lang: la, native: la === a.lang, move: ta.move, tool: ta.tool, text: ta.text }, b: { id: b.id, lang: lb, native: lb === b.lang, move: tb.move, tool: tb.tool, text: tb.text }, winner };
+        const side = (ag, lang, t) => ({ id: ag.id, lang, native: lang === ag.lang, move: t.move, tool: t.tool, text: t.text, system: t.system, messages: t.messages });
+        const entry = { n, a: side(a, la, ta), b: side(b, lb, tb), winner };
         throwsLog.push(entry);
         onThrow(entry, a, b);
         if (wa === 2 || wb === 2) break;

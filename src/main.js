@@ -1,7 +1,7 @@
 // Orchestration: mode selection (live, replay, simulated), the round
 // loop, recording and the buttons.
 
-import { createAgents } from "./agents.js";
+import { createAgents, LANG_CODES } from "./agents.js";
 import { assignDivisions, playRound, callEstimate } from "./league.js";
 import { complete, getKey, setKey, getModel, setModel, currentModel, stats as llmStats } from "./llm.js";
 import { MODELS, costUsd, formatNok, formatUsd, priceFor } from "./models.js";
@@ -101,8 +101,8 @@ async function replay(rec) {
     for (const r of rec.rounds.slice(round)) {
         if (!running) break;
         round++;
-        ui.round = round;
-    ui.roundStart();
+            ui.round = round;
+        ui.roundStart();
         updateCounters();
         ui.setStatus(`Avspilling · runde ${round}: kamper pågår`);
         for (const m of r.matches) {
@@ -195,7 +195,7 @@ function showEstimate() {
     const model = chosenModel();
     const m = priceFor(model);
     const per = costUsd(model, calls);
-    let text = `Rundt ${calls} kall per runde med ${n} agenter, ${Math.floor(n / 9)}–${Math.ceil(n / 9)} per språk.`;
+    let text = `Rundt ${calls} kall per runde med ${n} agenter, ${Math.floor(n / LANG_CODES.length)}–${Math.ceil(n / LANG_CODES.length)} per språk.`;
     if (per !== null) {
         text += ` Ca. ${formatNok(per)} per runde, ${formatNok(per * 20)} for 20 runder (${formatUsd(per)} / ${formatUsd(per * 20)}).`;
     } else if (model) {

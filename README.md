@@ -1,6 +1,6 @@
-# Stein, saks, papir på ni språk
+# Stein, saks, papir på åtte språk
 
-Språkmodell-agenter fordelt på ni språk spiller stein, saks, papir mot
+Språkmodell-agenter fordelt på åtte språk spiller stein, saks, papir mot
 hverandre i fem divisjoner. Hvert kast er ett ekte kall til språkmodellen,
 på det språket kampen spilles på. Antall agenter velges på startskjermen:
 20, 50, 100, 200 eller 500.
@@ -25,6 +25,11 @@ historikk før den kaster, og det koster ett kall til.
 - Pyramide med fem divisjonsbånd som vokser og krymper med antall agenter.
   Trykk på en divisjonsetikett for tabellen.
 - Fargeforklaring under pyramiden. Trykk på et språk for å filtrere.
+- Linjene i pyramiden er rundens kamper. Trykk på en linje, eller på en
+  kamp i en kampliste, for hele dialogen: begge svar kast for kast,
+  historikkbruk og promptene modellen fikk. Kampene ligger også i
+  opptaket.
+- Det samiske flagget finnes ikke som emoji og tegnes som SVG.
 - Trykk på en agent for kamphistorikk, ELO-kurve, divisjonsløp og nettverk
   av motstandere. Alle navn i logg, lister og tabeller er klikkbare.
 - Faner til høyre: Oversikt, Språk, Møter, Runder, og Agent eller Divisjon
@@ -90,7 +95,7 @@ data/              opptak.json legges her
 
 ## Språk
 
-Ni språk: norsk, svensk, dansk, finsk, islandsk, engelsk, tysk, nordsamisk
-og estisk. Nordsamisk møter norsk, svensk og finsk på motpartens språk,
+Åtte språk: norsk, svensk, dansk, finsk, islandsk, engelsk, tysk og
+nordsamisk. Nordsamisk møter norsk, svensk og finsk på motpartens språk,
 alt annet går på engelsk. De nordsamiske instruksene og ordene (geađgi,
 skierit, báhpir) er maskinoversatt og bør sjekkes av en som kan språket.

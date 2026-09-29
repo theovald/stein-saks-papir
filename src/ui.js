@@ -6,7 +6,18 @@ import { LANGUAGES, localWord } from "./languages.js";
 import { DIVISION_NAMES, START_DIVISION } from "./league.js";
 
 const MOVES = ["rock", "scissors", "paper"];
-const flagOf = (code) => LANGUAGES[code].flag || `<span class="flag--text">${LANGUAGES[code].short || code.toUpperCase()}</span>`;
+// The Sámi flag has no emoji, so it is drawn: red left, blue right, a
+// green and a yellow stripe, and a circle that is blue on red and red on blue.
+const SAMI_FLAG = `<svg class="flag flag--svg" viewBox="0 0 22 16" aria-label="Samisk flagg" role="img">
+<rect width="22" height="16" fill="#0035AD"/><rect width="10" height="16" fill="#D10000"/>
+<rect x="9.2" width="1.2" height="16" fill="#007229"/><rect x="10.4" width="1.6" height="16" fill="#FFD200"/>
+<path d="M11.2 3.8a4.2 4.2 0 0 0 0 8.4" fill="none" stroke="#0035AD" stroke-width="1.5"/><path d="M11.2 3.8a4.2 4.2 0 0 1 0 8.4" fill="none" stroke="#D10000" stroke-width="1.5"/>
+</svg>`;
+export function flag(code) {
+    if (code === "se") return SAMI_FLAG;
+    return LANGUAGES[code].flag || `<span class="flag--text">${LANGUAGES[code].short || code.toUpperCase()}</span>`;
+}
+const flagOf = flag;
 const MOVE_NO = { rock: "stein", scissors: "saks", paper: "papir" };
 const BAND_PAD_LEFT = 120;
 const BAND_PAD_TOP = 22;
@@ -29,6 +40,9 @@ export class UI {
         this.roundMatches = [];
         this.history = new Map(agents.map((a) => [a.id, []]));
         this.rounds = [];
+        this.matches = [];
+        this.selectedMatch = null;
+        this.matchFrom = null;
         this.lastMoves = new Map();
         this.selected = null;
         this.selectedDivision = null;
@@ -173,15 +187,17 @@ export class UI {
         this.nodes.get(b.id).classList.remove("is-playing");
         if (r) {
             const [wa, wb] = r.result;
-            this.history.get(a.id).push({ round: this.round, opp: b.id, lang: r.langs[0], own: wa, other: wb, throws: r.throws.map((t) => t.a) });
-            this.history.get(b.id).push({ round: this.round, opp: a.id, lang: r.langs[1], own: wb, other: wa, throws: r.throws.map((t) => t.b) });
+            const mid = this.matches.length;
+            this.matches.push({ id: mid, round: this.round, a: a.id, b: b.id, langs: r.langs, result: r.result, throws: r.throws });
+            this.history.get(a.id).push({ round: this.round, opp: b.id, lang: r.langs[0], own: wa, other: wb, throws: r.throws.map((t) => t.a), match: mid });
+            this.history.get(b.id).push({ round: this.round, opp: a.id, lang: r.langs[1], own: wb, other: wa, throws: r.throws.map((t) => t.b), match: mid });
             const key = [a.lang, b.lang].sort().join("|");
             const pr = this.stats.pairs.get(key) || { n: 0, wins: {} };
             pr.n++;
             if (wa > wb) pr.wins[a.lang] = (pr.wins[a.lang] || 0) + 1;
             if (wb > wa) pr.wins[b.lang] = (pr.wins[b.lang] || 0) + 1;
             this.stats.pairs.set(key, pr);
-            this.roundMatches.push({ a: a.id, b: b.id, lang: r.langs[0] });
+            this.roundMatches.push({ a: a.id, b: b.id, lang: r.langs[0], match: mid });
             if (this.selected === a.id || this.selected === b.id) { this.renderDetail(); this.applyDim(); }
         }
         this.drawLines();
@@ -193,9 +209,8 @@ export class UI {
         this.lastMoves = new Map(moves.map((m) => [m.id, m]));
         for (const m of moves) this.nodes.get(m.id).classList.add(m.to < m.from ? "is-up" : "is-down");
         await sleep(700);
-        // The table reshuffles now, so last round's lines would point to new
-        // positions and mislead. Clear them before the move.
-        this.roundMatches = [];
+        // The lines stay after the move, redrawn at the new positions, so
+        // every match of the round can still be opened until the next starts.
         this.layout();
         await sleep(1000);
         for (const m of moves) this.nodes.get(m.id).classList.remove("is-up", "is-down");
@@ -214,22 +229,35 @@ export class UI {
             const [x1, y1] = this.pos.get(p), [x2, y2] = this.pos.get(q);
             return `<line class="${cls}" x1="${x1 + NODE_R}" y1="${y1 + NODE_R}" x2="${x2 + NODE_R}" y2="${y2 + NODE_R}" stroke="${color}"/>`;
         };
+        const hit = (p, q, mid) => {
+            const [x1, y1] = this.pos.get(p), [x2, y2] = this.pos.get(q);
+            return `<line class="lines__hit" data-match="${mid}" x1="${x1 + NODE_R}" y1="${y1 + NODE_R}" x2="${x2 + NODE_R}" y2="${y2 + NODE_R}"><title>Åpne kampen</title></line>`;
+        };
         let svg = "";
         if (this.selected === null) {
             for (const m of this.roundMatches) {
-                if (this.pos.has(m.a) && this.pos.has(m.b)) svg += line(m.a, m.b, LANGUAGES[m.lang].color, "lines__done");
+                if (this.pos.has(m.a) && this.pos.has(m.b)) svg += line(m.a, m.b, LANGUAGES[m.lang].color, "lines__done" + (m.match === this.selectedMatch ? " lines__done--selected" : ""));
             }
             for (const { a, b, langs } of this.active.values()) {
                 if (this.pos.has(a.id) && this.pos.has(b.id)) svg += line(a.id, b.id, LANGUAGES[langs[0]].color, "lines__live");
+            }
+            for (const m of this.roundMatches) {
+                if (this.pos.has(m.a) && this.pos.has(m.b)) svg += hit(m.a, m.b, m.match);
             }
         } else if (this.pos.has(this.selected)) {
             for (const h of this.history.get(this.selected)) {
                 if (!this.pos.has(h.opp)) continue;
                 const color = h.own > h.other ? "var(--win)" : h.own < h.other ? "var(--loss)" : "var(--draw)";
-                svg += line(this.selected, h.opp, color, "lines__net");
+                svg += line(this.selected, h.opp, color, "lines__net" + (h.match === this.selectedMatch ? " lines__net--selected" : ""));
+            }
+            for (const h of this.history.get(this.selected)) {
+                if (this.pos.has(h.opp)) svg += hit(this.selected, h.opp, h.match);
             }
         }
         this.lines.innerHTML = svg;
+        this.lines.querySelectorAll(".lines__hit").forEach((el) => {
+            el.addEventListener("click", (e) => { e.stopPropagation(); this.selectMatch(Number(el.dataset.match), this.selected); });
+        });
     }
 
     // Dimming combines the language filter, the selected agent's network
@@ -267,6 +295,16 @@ export class UI {
         if (d !== null) { this.renderDivision(); this.activateTab("divisjon"); }
         else if (this.activeTab === "divisjon") this.activateTab("oversikt");
         this.applyDim();
+    }
+
+    // Open one match. from is the agent id to return to, or null.
+    selectMatch(id, from = null) {
+        this.selectedMatch = id;
+        if (id !== null) this.matchFrom = from;
+        this.showTab("kamp", id !== null);
+        if (id !== null) { this.renderMatch(); this.activateTab("kamp"); }
+        else if (this.activeTab === "kamp") this.activateTab(this.selected !== null ? "agent" : "oversikt");
+        this.drawLines();
     }
 
     filterLang(code) {
@@ -307,9 +345,14 @@ export class UI {
         return `<button type="button" class="lnk lnk--lang" data-lang="${code}" style="--c:${LANGUAGES[code].color}">${flagOf(code)} ${esc(LANGUAGES[code].name)}</button>`;
     }
 
+    matchLink(mid, label = "Se kampen") {
+        return `<button type="button" class="lnk lnk--match" data-m="${mid}">${label}</button>`;
+    }
+
     wire(root) {
         root.querySelectorAll(".lnk--agent").forEach((b) => b.addEventListener("click", () => this.select(Number(b.dataset.id))));
         root.querySelectorAll(".lnk--lang").forEach((b) => b.addEventListener("click", () => this.filterLang(this.langFilter === b.dataset.lang ? null : b.dataset.lang)));
+        root.querySelectorAll(".lnk--match").forEach((b) => b.addEventListener("click", () => this.selectMatch(Number(b.dataset.m), this.selected)));
     }
 
     // ---------- agent detail ----------
@@ -347,7 +390,7 @@ export class UI {
             const seq = h.throws.map((t) => (t.move ? MOVE_NO[t.move] : "ugyldig") + (t.tool ? " (historikk)" : "")).join(", ");
             const dots = h.throws.map((t) => `<i class="dot dot--${t.move || "none"}${t.tool ? " dot--tool" : ""}" title="${esc((t.move ? MOVE_NO[t.move] : "ugyldig") + (t.tool ? ", ba om historikk" : ""))}"></i>`).join("");
             const why = h.throws.map((t) => t.text ? t.text.replace(/\s+/g, " ").slice(0, 90) : "").filter(Boolean).join(" · ");
-            return `<li class="detail__match detail__match--${cls}" title="${esc(seq)}"><span>R${h.round}</span>${this.agentLink(o)}<span>${esc(LANGUAGES[h.lang].name)}</span><span class="dots">${dots}</span><b>${h.own}–${h.other}</b><small class="detail__why">${esc(why)}</small></li>`;
+            return `<li class="detail__match detail__match--${cls}" title="${esc(seq)}">${this.matchLink(h.match, `R${h.round}`)}${this.agentLink(o)}<span>${esc(LANGUAGES[h.lang].name)}</span><span class="dots">${dots}</span>${this.matchLink(h.match, `${h.own}–${h.other}`)}<small class="detail__why">${esc(why)}</small></li>`;
         }).join("");
         const divSeries = [START_DIVISION, ...this.rounds.map((r) => r.divisions[ag.id])];
         const eloSeries = [1000, ...this.rounds.map((r) => r.elos[ag.id])];
@@ -375,6 +418,56 @@ export class UI {
         this.wire(body);
         body.querySelector("#detail-close").addEventListener("click", () => this.select(null));
         body.querySelector(".lnk--div").addEventListener("click", () => this.selectDivision(ag.division));
+    }
+
+    // ---------- match view ----------
+
+    // The whole dialogue of one match: both sides per throw, the model's
+    // full replies with the move highlighted, tool use, and the prompts.
+    renderMatch() {
+        const m = this.matches[this.selectedMatch];
+        const A = this.byId.get(m.a), B = this.byId.get(m.b);
+        const [la, lb] = m.langs;
+        const mark = (side) => {
+            const text = esc(side.text || "");
+            if (!side.move) return `<span class="kamp__invalid">${text || "(tomt svar)"}</span>`;
+            const word = localWord(side.lang, side.move);
+            const re = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "i");
+            return text.replace(re, `<mark class="kamp__move kamp__move--${side.move}">$1</mark>`);
+        };
+        const exchange = (side) => {
+            if (!side.messages) return "";
+            const rows = side.messages.slice(0, -1).map((msg) => `<p class="kamp__msg kamp__msg--${msg.role}"><span>${msg.role === "user" ? "Til modellen" : "Modellen"}</span>${esc(msg.content)}</p>`).join("");
+            return `<details class="kamp__prompt"><summary>Vis prompt</summary><p class="kamp__msg kamp__msg--system"><span>System</span>${esc(side.system || "")}</p>${rows}</details>`;
+        };
+        const sideBox = (side, ag, won) => `
+            <div class="kamp__side ${won ? "kamp__side--won" : ""}">
+                <p class="kamp__reply">${mark(side)}</p>
+                ${side.tool ? `<p class="kamp__tool">Ba om historikk først</p>` : ""}
+                ${exchange(side)}
+            </div>`;
+        const throws = m.throws.map((t) => `
+            <li class="kamp__throw">
+                <div class="kamp__throwhead"><b>Kast ${t.n}</b><span>${t.winner === "a" ? esc(A.name) + " vinner" : t.winner === "b" ? esc(B.name) + " vinner" : "uavgjort"}</span></div>
+                <div class="kamp__pair">${sideBox(t.a, A, t.winner === "a")}${sideBox(t.b, B, t.winner === "b")}</div>
+            </li>`).join("");
+        const head = (ag, lang, score, won) => `
+            <div class="kamp__agent ${won ? "kamp__agent--won" : ""}">
+                ${this.agentLink(ag)}
+                <p class="detail__facts">${esc(ag.city)} · spiller på ${this.langLink(lang)}</p>
+                <b class="kamp__score">${score}</b>
+            </div>`;
+        const back = this.matchFrom !== null && this.byId.has(this.matchFrom)
+            ? `<button type="button" class="btn btn--quiet btn--small" id="kamp-back">← ${esc(this.byId.get(this.matchFrom).name)}</button>` : "";
+        document.getElementById("kamp-body").innerHTML = `
+            <div class="detail__head"><h2>Runde ${m.round}</h2><div class="kamp__buttons">${back}<button type="button" class="btn btn--quiet btn--small" id="kamp-close">Lukk</button></div></div>
+            <div class="kamp__heads">${head(A, la, m.result[0], m.result[0] > m.result[1])}<span class="kamp__vs">mot</span>${head(B, lb, m.result[1], m.result[1] > m.result[0])}</div>
+            <ol class="kamp__throws">${throws}</ol>`;
+        const body = document.getElementById("kamp-body");
+        this.wire(body);
+        body.querySelector("#kamp-close").addEventListener("click", () => this.selectMatch(null));
+        const bb = body.querySelector("#kamp-back");
+        if (bb) bb.addEventListener("click", () => { const from = this.matchFrom; this.selectMatch(null); this.select(from); });
     }
 
     // ---------- division table ----------
@@ -409,11 +502,14 @@ export class UI {
             const up = ups.map((m) => this.agentLink(this.byId.get(m.id))).join(" ");
             const down = downs.map((m) => this.agentLink(this.byId.get(m.id))).join(" ");
             const counts = DIVISION_NAMES.map((_, d) => r.divisions.filter((x) => x === d).length).join(" / ");
+            const games = this.matches.filter((m) => m.round === r.n);
+            const list = games.map((m) => `<li class="matchrow">${this.matchLink(m.id, `${m.result[0]}–${m.result[1]}`)} ${this.agentLink(this.byId.get(m.a))} <span class="matchrow__vs">mot</span> ${this.agentLink(this.byId.get(m.b))}</li>`).join("");
             return `<li class="roundrow">
                 <div class="roundrow__head"><b>Runde ${r.n}</b><span>${r.calls} kall</span></div>
                 <p class="detail__facts">Divisjoner etterpå, øverst til nederst: ${counts}</p>
                 <p class="roundrow__list"><span class="up">▲ ${ups.length}</span> ${up || "ingen"}</p>
                 <p class="roundrow__list"><span class="down">▼ ${downs.length}</span> ${down || "ingen"}</p>
+                <details class="roundrow__games"><summary>${games.length} kamper</summary><ol class="matchlist">${list}</ol></details>
             </li>`;
         }).join("");
         this.wire(box);
